@@ -45,6 +45,7 @@ import ArrowCat
 import UnifiedAggregation.Regimes
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.SymmetricGroup
+import UnifiedAggregation.FunctorExt
 
 set_option autoImplicit false
 
@@ -98,20 +99,37 @@ def actByPerm {m : Nat} {α : Type u} (σ : Perm m) :
 /-- The `S_m` action on `Profile m α`.  Each permutation lifts to an
 endofunctor on `ProfileCat m α` via `actByPerm`.
 
-Both `act_one` and `act_mul` are stubbed.  The object-level
-computations match in both cases (both reduce to the right lambda
-expressions), but the equalities involve `fun X => ⟨X.val⟩ = fun X => X`
-(for `act_one`) and the `by simp`-generated proof fields of
-`Functor.comp` (for `act_mul`), neither of which closes by `rfl`
-without explicit extensionality machinery (Discrete-structure-eta
-under a binder, Functor.ext on the simp-generated proof fields).
-
-Tracked as Phase 1a follow-up: add a `Functor.ext` lemma (probably
-upstream into comp-cat-theory) and a `Discrete.ext` lemma. -/
+Both `act_one` and `act_mul` close via the same recipe: apply
+`UnifiedAggregation.Functor.ext`, prove the obj-equality by
+`funext (fun _ => rfl)` (Discrete structure eta on the wrapper), and
+prove the map-equality by `heq_of_eq` + nested `funext` + case
+analysis on the single `.id` constructor of `DiscreteHom`.  No tactic
+blocks; pure term mode. -/
 def profileAction (m : Nat) (α : Type u) :
     GAction (SymmetricGroup m) (ProfileCat m α) where
   act := actByPerm
-  act_one := by sorry
-  act_mul _ _ := by sorry
+  act_one :=
+    UnifiedAggregation.Functor.ext
+      (funext (fun _ => rfl))
+      (heq_of_eq (funext (fun _ => funext (fun _ => funext (fun h =>
+        match h with
+        | .id _ => rfl)))))
+  act_mul _ _ :=
+    UnifiedAggregation.Functor.ext
+      (funext (fun _ => rfl))
+      (heq_of_eq (funext (fun _ => funext (fun _ => funext (fun h =>
+        match h with
+        | .id _ => rfl)))))
+
+/-- A *social welfare function* lifts to a functor between the discrete
+profile category and the discrete strict-preference category.  This is
+the `ChoiceRule` of the unified framework instantiated to Arrow's
+social-choice setting: the SWF's object map is its function action,
+and discrete morphisms are mapped to identities (no nontrivial
+naturality to preserve, since the source category has only identity
+arrows). -/
+def SWFasChoiceRule {m : Nat} {α : Type u} (f : SWF m α) :
+    ProfileCat m α ⥤ Discrete (StrictPref α) :=
+  discreteFunctor f
 
 end UnifiedAggregation.Bridge
