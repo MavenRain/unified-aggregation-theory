@@ -2,10 +2,19 @@
   UnifiedAggregation.Aggregation
 
   Aggregation as a left Kan extension along the orbit projection
-  p : C ⥤ C // G.  The orbit groupoid and projection are declared
-  here as Phase 0 stubs so the downstream regimes and trichotomy can
-  be stated against the right signature; the concrete action-groupoid
-  construction lands in Phase 1.
+  p : C ⥤ C // G into the action groupoid.
+
+  The action groupoid `C // G` is structurally wrapped (rather than a
+  bare `def := Obj`) to keep the Category instance from colliding with
+  C's own Category instance via recursive typeclass lookup.  Morphisms
+  are pairs `(g, f : X.val → act(g)(Y.val))`; identity uses `act_one`
+  to cast `𝟙 X.val` into the orbit-typed form; composition uses
+  `act_mul` to bundle the group element with the transported C-morphism.
+
+  The three Category laws (`comp_id`, `id_comp`, `assoc`) on the orbit
+  groupoid plus the two Functor laws on `orbitProjection` (`map_id`,
+  `map_comp`) are sorried in this commit and tracked as Phase 1a
+  follow-up — each is a multi-step rewrite through the cast machinery.
 -/
 
 import UnifiedAggregation.ChoiceRule
@@ -17,31 +26,54 @@ universe u v
 
 namespace UnifiedAggregation
 
-open CompCatTheory
+open CompCatTheory Category Functor
 
-/-- The *orbit groupoid* `C // G`: morally the quotient category whose
-objects are G-orbits of C-objects and whose morphisms include both
-C-morphisms (within an orbit's representatives) and G-translations
-(between representatives).
+/-- The carrier type for the *orbit groupoid* `C // G`.  Wrapped in a
+structure (rather than a `def := Obj`) so the Category instance below
+doesn't collide with `C`'s own Category instance through recursive
+typeclass lookup. -/
+structure OrbitGroupoid {Obj : Type u} [Category.{u, u} Obj]
+    {G : SymmetryGroup.{u}} (_act : GAction G Obj) : Type u where
+  val : Obj
 
-Phase 0 stub: declared as a `Type u` placeholder so the orbit projection
-and aggregation can be typed.  Phase 1 replaces this with the genuine
-action-groupoid construction. -/
-def OrbitGroupoid {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} (_act : GAction G Obj) : Type u :=
-  Obj
+/-- A *morphism in the orbit groupoid* from `X` to `Y`: a pair `(g, f)`
+where `g : G.carrier` and `f : Hom X.val (act(g)(Y.val))`.  Intuitively
+this is a C-morphism from the underlying value of `X` to a chosen
+representative of `Y`'s orbit, with `g` recording the choice. -/
+structure OrbitHom {Obj : Type u} [Category.{u, u} Obj]
+    {G : SymmetryGroup.{u}} (act : GAction G Obj)
+    (X Y : OrbitGroupoid act) : Type u where
+  g : G.carrier
+  f : Hom X.val ((act.act g).obj Y.val)
 
-/-- The orbit groupoid carries a category structure.  Phase 0 stub. -/
+/-- The orbit groupoid carries a category structure.  `Hom`, `id`, and
+`comp` are wired to the `OrbitHom` machinery; the three associativity-
+and-unit laws are sorried (each is a multi-step rewrite through the
+cast machinery and is tracked as Phase 1a follow-up). -/
 instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} (act : GAction G Obj) :
-    Category.{u, u} (OrbitGroupoid act) := by
-  sorry
+    {G : SymmetryGroup.{u}} {act : GAction G Obj} :
+    Category.{u, u} (OrbitGroupoid act) where
+  Hom X Y := OrbitHom act X Y
+  id X := { g := G.one, f := act.act_one.symm ▸ (𝟙 X.val) }
+  comp p q :=
+    { g := G.mul p.g q.g
+      f := (act.act_mul p.g q.g).symm ▸ (p.f ≫ (act.act p.g).map q.f) }
+  comp_id := by sorry
+  id_comp := by sorry
+  assoc := by sorry
 
-/-- The orbit projection `p : C ⥤ C // G`.  Phase 0 stub. -/
+/-- The orbit projection `p : C ⥤ C // G`.  Sends each C-object to its
+wrapped form in `OrbitGroupoid` and each C-morphism `f : X → Y` to the
+orbit morphism `(G.one, f)` with the `act_one` cast.  Functoriality
+laws (`map_id`, `map_comp`) are sorried; both follow from the orbit
+groupoid laws plus the cast machinery. -/
 def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
     {G : SymmetryGroup.{u}} (act : GAction G Obj) :
-    Obj ⥤ OrbitGroupoid act := by
-  sorry
+    Obj ⥤ OrbitGroupoid act where
+  obj X := { val := X }
+  map {_ _} f := { g := G.one, f := act.act_one.symm ▸ f }
+  map_id := by sorry
+  map_comp := by sorry
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule
 `F : C ⥤ D` along the orbit projection `p : C ⥤ C // G`.
