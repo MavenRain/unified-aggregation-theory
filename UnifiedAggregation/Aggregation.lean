@@ -46,6 +46,16 @@ structure OrbitHom {Obj : Type u} [Category.{u, u} Obj]
   g : G.carrier
   f : Hom X.val ((act.act g).obj Y.val)
 
+/-- Extensionality for `OrbitHom`: two orbit morphisms are equal iff
+their `g` and `f` fields agree.  The `f` field's type depends on `g`,
+so the `f`-equality is stated using `HEq`.  After destructuring and
+the `rfl + HEq.refl` patterns align everything, `rfl` closes. -/
+theorem OrbitHom.ext {Obj : Type u} [Category.{u, u} Obj]
+    {G : SymmetryGroup.{u}} {act : GAction G Obj}
+    {X Y : OrbitGroupoid act} : ∀ {p q : OrbitHom act X Y},
+    p.g = q.g → HEq p.f q.f → p = q
+  | ⟨_, _⟩, ⟨_, _⟩, rfl, HEq.refl _ => rfl
+
 /-- The orbit groupoid carries a category structure.  `Hom`, `id`, and
 `comp` are wired to the `OrbitHom` machinery; the three associativity-
 and-unit laws are sorried (each is a multi-step rewrite through the
@@ -72,8 +82,8 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
     Obj ⥤ OrbitGroupoid act where
   obj X := { val := X }
   map {_ _} f := { g := G.one, f := act.act_one.symm ▸ f }
-  map_id := by sorry
-  map_comp := by sorry
+  map_id _ := rfl
+  map_comp _ _ := by sorry
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule
 `F : C ⥤ D` along the orbit projection `p : C ⥤ C // G`.
