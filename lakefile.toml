@@ -1,0 +1,21 @@
+name = "unified-aggregation-theory"
+version = "0.1.0"
+defaultTargets = ["UnifiedAggregation"]
+
+[[lean_lib]]
+name = "UnifiedAggregation"
+# TODO: re-enable `-DwarningAsError=true` once Phase 1 lands and the
+# Phase 0 `sorry` stubs are replaced with real proofs.
+
+[[require]]
+name = "comp-cat-theory"
+path = "../comp-cat-theory"
+
+[[require]]
+name = "arrow-cat"
+path = "../arrow-cat"
+
+[[require]]
+name = "doc-gen4"
+git = "https://github.com/leanprover/doc-gen4"
+rev = "main"
