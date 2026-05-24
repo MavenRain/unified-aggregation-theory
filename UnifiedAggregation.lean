@@ -3,6 +3,7 @@
 
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.ConfigSpace
+import UnifiedAggregation.SymmetricGroup
 import UnifiedAggregation.ChoiceRule
 import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Regimes
