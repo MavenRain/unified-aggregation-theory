@@ -6,3 +6,4 @@ import UnifiedAggregation.ChoiceRule
 import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Regimes
 import UnifiedAggregation.Trichotomy
+import UnifiedAggregation.Bridge
