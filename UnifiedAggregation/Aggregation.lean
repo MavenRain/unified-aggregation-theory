@@ -68,9 +68,24 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
   comp p q :=
     { g := G.mul p.g q.g
       f := (act.act_mul p.g q.g).symm ▸ (p.f ≫ (act.act p.g).map q.f) }
-  comp_id := by sorry
-  id_comp := by sorry
-  assoc := by sorry
+  -- The g-field of each law closes by direct application of the
+  -- corresponding SymmetryGroup law (mul_one, one_mul, mul_assoc).
+  -- The HEq on the f-field is the same obstruction as
+  -- orbitProjection.map_comp's HEq sorry: it needs cast-tower
+  -- manipulation through act_one / act_mul.  Tracked as Phase 1a
+  -- follow-up; the structural skeleton is in place.
+  comp_id := fun p => by
+    apply OrbitHom.ext
+    · exact G.mul_one p.g
+    · sorry
+  id_comp := fun p => by
+    apply OrbitHom.ext
+    · exact G.one_mul p.g
+    · sorry
+  assoc := fun p q r => by
+    apply OrbitHom.ext
+    · exact G.mul_assoc p.g q.g r.g
+    · sorry
 
 /-- The orbit projection `p : C ⥤ C // G`.  Sends each C-object to its
 wrapped form in `OrbitGroupoid` and each C-morphism `f : X → Y` to the
@@ -83,7 +98,16 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
   obj X := { val := X }
   map {_ _} f := { g := G.one, f := act.act_one.symm ▸ f }
   map_id _ := rfl
-  map_comp _ _ := by sorry
+  map_comp _ _ := by
+    -- exception: uses standard `apply` instead of `kan_apply` because
+    -- OrbitHom.ext lands the g-field equality cleanly via group law.
+    -- The HEq on the f field remains sorried: it requires either
+    -- substitution on act_one (blocked by dependent elimination on
+    -- non-variable terms) or a chain of `eqRec_heq` manipulations
+    -- through the cast tower.  Tracked as Phase 1a follow-up.
+    apply OrbitHom.ext
+    · exact (G.one_mul G.one).symm
+    · sorry
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule
 `F : C ⥤ D` along the orbit projection `p : C ⥤ C // G`.
