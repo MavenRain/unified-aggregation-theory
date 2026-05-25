@@ -22,7 +22,7 @@ import CompCatTheory.Primitive.KanExtension
 
 set_option autoImplicit false
 
-universe u v
+universe u v w
 
 namespace UnifiedAggregation
 
@@ -33,7 +33,7 @@ structure (rather than a `def := Obj`) so the Category instance below
 doesn't collide with `C`'s own Category instance through recursive
 typeclass lookup. -/
 structure OrbitGroupoid {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} (_act : GAction G Obj) : Type u where
+    {G : SymmetryGroup.{w}} (_act : GAction G Obj) : Type u where
   val : Obj
 
 /-- A *morphism in the orbit groupoid* from `X` to `Y`: a pair `(g, f)`
@@ -41,8 +41,8 @@ where `g : G.carrier` and `f : Hom X.val (act(g)(Y.val))`.  Intuitively
 this is a C-morphism from the underlying value of `X` to a chosen
 representative of `Y`'s orbit, with `g` recording the choice. -/
 structure OrbitHom {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} (act : GAction G Obj)
-    (X Y : OrbitGroupoid act) : Type u where
+    {G : SymmetryGroup.{w}} (act : GAction G Obj)
+    (X Y : OrbitGroupoid act) : Type (max u w) where
   g : G.carrier
   f : Hom X.val ((act.act g).obj Y.val)
 
@@ -51,7 +51,7 @@ their `g` and `f` fields agree.  The `f` field's type depends on `g`,
 so the `f`-equality is stated using `HEq`.  After destructuring and
 the `rfl + HEq.refl` patterns align everything, `rfl` closes. -/
 theorem OrbitHom.ext {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} {act : GAction G Obj}
+    {G : SymmetryGroup.{w}} {act : GAction G Obj}
     {X Y : OrbitGroupoid act} : ∀ {p q : OrbitHom act X Y},
     p.g = q.g → HEq p.f q.f → p = q
   | ⟨_, _⟩, ⟨_, _⟩, rfl, HEq.refl _ => rfl
@@ -61,8 +61,8 @@ theorem OrbitHom.ext {Obj : Type u} [Category.{u, u} Obj]
 and-unit laws are sorried (each is a multi-step rewrite through the
 cast machinery and is tracked as Phase 1a follow-up). -/
 instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} {act : GAction G Obj} :
-    Category.{u, u} (OrbitGroupoid act) where
+    {G : SymmetryGroup.{w}} {act : GAction G Obj} :
+    Category.{u, max u w} (OrbitGroupoid act) where
   Hom X Y := OrbitHom act X Y
   id X := { g := G.one, f := act.act_one.symm ▸ (𝟙 X.val) }
   comp p q :=
@@ -93,7 +93,7 @@ orbit morphism `(G.one, f)` with the `act_one` cast.  Functoriality
 laws (`map_id`, `map_comp`) are sorried; both follow from the orbit
 groupoid laws plus the cast machinery. -/
 def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} (act : GAction G Obj) :
+    {G : SymmetryGroup.{w}} (act : GAction G Obj) :
     Obj ⥤ OrbitGroupoid act where
   obj X := { val := X }
   map {_ _} f := { g := G.one, f := act.act_one.symm ▸ f }
@@ -123,7 +123,7 @@ property of when and how this Kan extension is realized:
   the β parameter -/
 def Aggregation
     {Obj : Type u} [Category.{u, u} Obj]
-    {G : SymmetryGroup.{u}} (act : GAction G Obj)
+    {G : SymmetryGroup.{w}} (act : GAction G Obj)
     {D : Type v} [Category.{v, v} D]
     (F : ChoiceRule Obj D) :=
   LeftKanExtension (orbitProjection act) F

@@ -132,4 +132,25 @@ def SWFasChoiceRule {m : Nat} {α : Type u} (f : SWF m α) :
     ProfileCat m α ⥤ Discrete (StrictPref α) :=
   discreteFunctor f
 
+/-! ## Connection theorem
+
+Arrow's Impossibility Theorem, restated as a statement *within* the
+unified framework: no social welfare function simultaneously
+satisfies Pareto, IIA, non-dictatorship, and admits a left Kan
+extension along the orbit projection in the unified framework.
+
+The proof is a direct application of `arrow_impossibility`: the
+Aggregation clause is unused for the contradiction (since
+`arrow_impossibility` already rules out the SWF satisfying the three
+classical hypotheses).  The clause is included to anchor the result
+in the framework's `Aggregation` type, demonstrating that arrow-cat's
+theorem speaks the same language as the categorical unification. -/
+theorem arrow_impossibility_in_framework
+    {m : Nat} {α : Type u} [DecidableEq α]
+    (h1 : 0 < m) (h3 : AtLeastThree α) :
+    ¬ ∃ (f : SWF m α),
+        SWF.Pareto f ∧ SWF.IIA f ∧ SWF.NonDictator f ∧
+        Nonempty (Aggregation (profileAction m α) (SWFasChoiceRule f)) :=
+  fun ⟨f, hP, hI, hND, _⟩ => arrow_impossibility h1 h3 ⟨f, hP, hI, hND⟩
+
 end UnifiedAggregation.Bridge
