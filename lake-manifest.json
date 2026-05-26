@@ -24,7 +24,7 @@
    "manifestFile": "lake-manifest.json",
    "inherited": false,
    "dir": "../comp-cat-theory",
-   "configFile": "lakefile.toml"},
+   "configFile": "lakefile.lean"},
   {"url": "https://github.com/leanprover/leansqlite",
    "type": "git",
    "subDir": null,

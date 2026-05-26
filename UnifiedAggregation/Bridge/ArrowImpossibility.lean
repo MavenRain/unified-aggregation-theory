@@ -54,6 +54,7 @@ universe u
 namespace UnifiedAggregation.Bridge
 
 open ArrowCat
+open ArrowCat.StrictPref
 open CompCatTheory
 
 /-- **Arrow's Impossibility Theorem in conjunctive non-existence
@@ -206,20 +207,45 @@ theorem all_voters_dictator_under_equivariance
   obtain ⟨σ, hσ⟩ := h_trans k₀ k
   exact equivariant_dictator_transfer f h_equiv hσ hD
 
-/-- *Two distinct dictators are contradictory*: for `m ≥ 2` voters
-and a nonempty profile space, if any two voters are both dictators
-they cannot agree on a profile where their preferences disagree on
-some pair `(a, b)`.  Stated here; the proof needs an explicit
-disagreement-profile construction (using `moveBToTop` and
-`moveBToBottom` from arrow-cat).  Tracked as Phase 1a follow-up. -/
+/-- *Two distinct dictators are contradictory*: if any two distinct
+voters are both dictators of an SWF, a disagreement profile (where
+the two voters rank `a`, `b` oppositely) plus the dictator hypothesis
+forces `(f p).pref a b ∧ (f p).pref b a`, violating asymmetry.
+
+Profile construction: take any base profile `p₀`, then `moveBToBottom b`
+on voter `k₁` (making `a > b` for `k₁`) and `moveBToBottom a` on
+voter `k₂` (making `b > a` for `k₂`).  Uses arrow-cat's
+`StrictPref.moveBToBottom` plus `moveBToBottom_pref_other_b`. -/
 theorem no_two_dictators
     {m : Nat} {α : Type u}
-    (_h2 : 2 ≤ m) (_h3 : AtLeastThree α)
-    (_hNE : Nonempty (Profile m α))
-    (_f : SWF m α)
-    {_k₁ _k₂ : Fin m} (_h_ne : _k₁ ≠ _k₂)
-    (_hD₁ : SWF.Dictator _f _k₁) (_hD₂ : SWF.Dictator _f _k₂) :
-    False := by sorry
+    (_h2 : 2 ≤ m) (h3 : AtLeastThree α)
+    (hNE : Nonempty (Profile m α))
+    (f : SWF m α)
+    {k₁ k₂ : Fin m} (h_ne : k₁ ≠ k₂)
+    (hD₁ : SWF.Dictator f k₁) (hD₂ : SWF.Dictator f k₂) :
+    False := by
+  obtain ⟨a, b, _, hab, _, _⟩ := h3
+  have h_ba : b ≠ a := Ne.symm hab
+  let p₀ := Classical.choice hNE
+  -- Profile: voter k₁ has b at bottom (so a > b), voter k₂ has a at
+  -- bottom (so b > a), others keep p₀'s preference.
+  let p : Profile m α := fun i =>
+    if i = k₁ then (p₀ k₁).moveBToBottom b
+    else if i = k₂ then (p₀ k₂).moveBToBottom a
+    else p₀ i
+  have h_pk1 : p k₁ = (p₀ k₁).moveBToBottom b := if_pos rfl
+  have h_pk2 : p k₂ = (p₀ k₂).moveBToBottom a := by
+    show (if k₂ = k₁ then (p₀ k₁).moveBToBottom b
+          else if k₂ = k₂ then (p₀ k₂).moveBToBottom a
+          else p₀ k₂) = _
+    rw [if_neg (Ne.symm h_ne), if_pos rfl]
+  have hPref_k1 : (p k₁).pref a b :=
+    h_pk1 ▸ moveBToBottom_pref_other_b _ hab
+  have hPref_k2 : (p k₂).pref b a :=
+    h_pk2 ▸ moveBToBottom_pref_other_b _ h_ba
+  have h_fab : (f p).pref a b := hD₁ p a b hPref_k1
+  have h_fba : (f p).pref b a := hD₂ p b a hPref_k2
+  exact (f p).asym a b h_fab h_fba
 
 /-- *Strong connection theorem* — the framework's `S_m` action is
 load-bearing: no SWF over `m ≥ 2` voters and 3+ alternatives can
@@ -245,8 +271,17 @@ theorem no_equivariant_constrained_swf
             f (fun i => p (σ.toFun i)) = f p) ∧
         SWF.Pareto f ∧ SWF.IIA f := by
   intro ⟨f, h_equiv, hP, hI⟩
-  -- Transitivity of S_m action on Fin m (sorry: needs swap construction)
-  have h_trans : ∀ (k k' : Fin m), ∃ σ : Perm m, σ.toFun k = k' := by sorry
+  -- Transitivity of S_m action on Fin m, using arrow-cat's swapMap
+  -- to build the swap permutation when k ≠ k'.
+  have h_trans : ∀ (k k' : Fin m), ∃ σ : Perm m, σ.toFun k = k' := fun k k' =>
+    if h : k = k' then
+      ⟨Perm.id m, h⟩
+    else
+      ⟨{ toFun := swapMap k k'
+         invFun := swapMap k k'
+         left_inv := swapMap_involution k k'
+         right_inv := swapMap_involution k k' },
+        swapMap_at_a k k'⟩
   -- Every voter is a dictator
   have h_all : ∀ k : Fin m, SWF.Dictator f k :=
     all_voters_dictator_under_equivariance
