@@ -3,3 +3,4 @@
 -- unified framework's regime predicates.
 
 import UnifiedAggregation.Bridge.ArrowImpossibility
+import UnifiedAggregation.Bridge.SchellingIsing
