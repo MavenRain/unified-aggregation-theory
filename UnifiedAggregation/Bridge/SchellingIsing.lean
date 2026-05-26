@@ -129,10 +129,23 @@ def configActByZ2 {n : Nat} (z : Z2) :
 
 `act_mul` case-splits on `(x, y)`:
 - `(.e, _)`, `(.g, .e)`: composition is definitional, same recipe.
-- `(.g, .g)`: needs `SpinConfig.flip_flip` to align the obj fields.
-  This case is sorried — it requires either an HEq-aware Functor.ext
-  variant or a custom transport through the flip-involution.
-  Tracked as Phase 1b follow-up. -/
+- `(.g, .g)`: sorried.  Here the obj fields are propositionally but
+  not definitionally equal:
+    LHS.obj X = ⟨X.val⟩  (after reducing actOnConfig .e)
+    RHS.obj X = ⟨X.val.flip.flip⟩  (double flip)
+  The equality `X.val.flip.flip = X.val` is `SpinConfig.flip_flip`,
+  applied componentwise on `Fin n → Spin` via funext.  This is the
+  same fundamental obstacle as the orbit-groupoid cast-tower HEqs in
+  `Aggregation.lean`: `Functor.ext`'s HEq on the `map` field needs
+  the obj fields definitionally equal to apply `heq_of_eq` after a
+  funext + match-on-`DiscreteHom.id` proof.  Resolving needs either:
+  - an HEq-aware Functor extensionality lemma that handles
+    obj-equal-up-to-funext, or
+  - a custom transport through the involution.
+
+Tracked alongside the Aggregation HEq sorries as a common technical
+obstruction.  The structural construction is in place; the law for
+`.g, .g` is the only remaining gap. -/
 def spinConfigAction (n : Nat) :
     GAction Z2Group (SpinConfigCat n) where
   act := configActByZ2
@@ -154,7 +167,14 @@ def spinConfigAction (n : Nat) :
         (heq_of_eq (funext (fun _ => funext (fun _ => funext (fun h =>
           match h with
           | DiscreteHom.id _ => rfl)))))
-    | .g, .g => sorry
+    | .g, .g =>
+      apply UnifiedAggregation.Functor.ext
+      · -- obj equality: ⟨X.val⟩ = ⟨X.val.flip.flip⟩ via SpinConfig.flip_flip
+        funext X
+        exact congrArg Discrete.mk (SpinConfig.flip_flip X.val).symm
+      · -- HEq @F.map @G.map: obj-equal-but-not-definitional blocks
+        -- heq_of_eq.  Needs a transport through the flip-involution.
+        sorry
 
 /-! ## Bifurcation theorem (statement)
 
