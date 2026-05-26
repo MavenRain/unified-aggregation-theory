@@ -132,19 +132,20 @@ def SWFasChoiceRule {m : Nat} {α : Type u} (f : SWF m α) :
     ProfileCat m α ⥤ Discrete (StrictPref α) :=
   discreteFunctor f
 
-/-! ## Connection theorem
+/-! ## Connection theorems
 
-Arrow's Impossibility Theorem, restated as a statement *within* the
-unified framework: no social welfare function simultaneously
-satisfies Pareto, IIA, non-dictatorship, and admits a left Kan
-extension along the orbit projection in the unified framework.
+The framework's `S_m` action on profiles encodes anonymity (an SWF
+respects the action iff it treats voters interchangeably).  These
+connection theorems make the framework load-bearing: results that
+need the GAction structure, not just arrow-cat's classical
+statement. -/
 
-The proof is a direct application of `arrow_impossibility`: the
-Aggregation clause is unused for the contradiction (since
-`arrow_impossibility` already rules out the SWF satisfying the three
-classical hypotheses).  The clause is included to anchor the result
-in the framework's `Aggregation` type, demonstrating that arrow-cat's
-theorem speaks the same language as the categorical unification. -/
+/-- *Weak connection*: Arrow's Impossibility Theorem restated with
+the framework's `Aggregation` type appearing in the conclusion.
+
+The `Aggregation` clause is unused for the contradiction (the SWF
+hypotheses alone suffice via `arrow_impossibility`), so this is a
+"framework-typed" restatement rather than a framework-driven one. -/
 theorem arrow_impossibility_in_framework
     {m : Nat} {α : Type u} [DecidableEq α]
     (h1 : 0 < m) (h3 : AtLeastThree α) :
@@ -152,5 +153,111 @@ theorem arrow_impossibility_in_framework
         SWF.Pareto f ∧ SWF.IIA f ∧ SWF.NonDictator f ∧
         Nonempty (Aggregation (profileAction m α) (SWFasChoiceRule f)) :=
   fun ⟨f, hP, hI, hND, _⟩ => arrow_impossibility h1 h3 ⟨f, hP, hI, hND⟩
+
+/-- *Equivariance transfer*: an anonymous SWF transfers the dictator
+role between any two voters connected by a permutation.  If `k` is a
+dictator and `σ` maps `k` to `k'`, then `k'` is also a dictator.
+
+This is the load-bearing piece for the strong connection theorem:
+combined with Arrow's theorem (which produces a dictator) and the
+ability to construct permutations between distinct voters (for
+`m ≥ 2`), it shows that anonymity is incompatible with
+Pareto + IIA over 3+ alternatives. -/
+theorem equivariant_dictator_transfer
+    {m : Nat} {α : Type u}
+    (f : SWF m α)
+    (h_equiv : ∀ (σ : Perm m) (p : Profile m α),
+        f (fun i => p (σ.toFun i)) = f p)
+    {k k' : Fin m} {σ : Perm m} (h_σ : σ.toFun k = k')
+    (h_dict : SWF.Dictator f k) :
+    SWF.Dictator f k' := by
+  -- exception: standard tactics (intro/let/have/exact + rewrite via ▸)
+  -- since kan-tactics has no funext-style alternative for the rewrite.
+  intro p' a b h_pref
+  let p_new : Profile m α := fun i => p' (σ.toFun i)
+  have h_pn_k : p_new k = p' k' := by
+    show p' (σ.toFun k) = p' k'
+    rw [h_σ]
+  have h_pn_pref : (p_new k).pref a b := h_pn_k ▸ h_pref
+  have h_f_pn : (f p_new).pref a b := h_dict p_new a b h_pn_pref
+  have h_eq : f p_new = f p' := h_equiv σ p'
+  exact h_eq ▸ h_f_pn
+
+/-- *Every voter is a dictator under equivariance*: if an SWF is
+equivariant under all permutations and the `S_m` action is transitive
+on voters (which it always is for the full symmetric group, but is
+left as a hypothesis here to avoid the swap-permutation construction),
+then Arrow's dictator is universal.
+
+Proved by combining `arrow` (which gives some dictator `k₀`) with
+`equivariant_dictator_transfer` (which transfers the role to any `k`
+via the transitivity witness). -/
+theorem all_voters_dictator_under_equivariance
+    {m : Nat} {α : Type u} [DecidableEq α]
+    (h1 : 0 < m) (h3 : AtLeastThree α)
+    (f : SWF m α)
+    (h_equiv : ∀ (σ : Perm m) (p : Profile m α),
+        f (fun i => p (σ.toFun i)) = f p)
+    (hP : SWF.Pareto f) (hI : SWF.IIA f)
+    (h_trans : ∀ (k k' : Fin m), ∃ σ : Perm m, σ.toFun k = k') :
+    ∀ k : Fin m, SWF.Dictator f k := by
+  intro k
+  obtain ⟨k₀, hD⟩ := arrow f h1 h3 hP hI
+  obtain ⟨σ, hσ⟩ := h_trans k₀ k
+  exact equivariant_dictator_transfer f h_equiv hσ hD
+
+/-- *Two distinct dictators are contradictory*: for `m ≥ 2` voters
+and a nonempty profile space, if any two voters are both dictators
+they cannot agree on a profile where their preferences disagree on
+some pair `(a, b)`.  Stated here; the proof needs an explicit
+disagreement-profile construction (using `moveBToTop` and
+`moveBToBottom` from arrow-cat).  Tracked as Phase 1a follow-up. -/
+theorem no_two_dictators
+    {m : Nat} {α : Type u}
+    (_h2 : 2 ≤ m) (_h3 : AtLeastThree α)
+    (_hNE : Nonempty (Profile m α))
+    (_f : SWF m α)
+    {_k₁ _k₂ : Fin m} (_h_ne : _k₁ ≠ _k₂)
+    (_hD₁ : SWF.Dictator _f _k₁) (_hD₂ : SWF.Dictator _f _k₂) :
+    False := by sorry
+
+/-- *Strong connection theorem* — the framework's `S_m` action is
+load-bearing: no SWF over `m ≥ 2` voters and 3+ alternatives can
+simultaneously be `S_m`-equivariant and satisfy Pareto + IIA.
+
+Proof structure (modulo two internal sorries):
+1. Arrow gives a dictator `k₀`.
+2. Equivariance + transitivity of `S_m` (sorry: needs the swap
+   permutation construction) makes every voter a dictator.
+3. Two distinct dictators give a disagreement-profile contradiction
+   (sorry: `no_two_dictators`).
+
+This is the headline theorem that justifies the categorical framing:
+arrow-cat's classical statement allows dictators, but the unified
+framework's `S_m` action requires anonymity, which Arrow's hypotheses
+rule out for `m ≥ 2`. -/
+theorem no_equivariant_constrained_swf
+    {m : Nat} {α : Type u} [DecidableEq α]
+    (h2 : 2 ≤ m) (h3 : AtLeastThree α)
+    (hNE : Nonempty (Profile m α)) :
+    ¬ ∃ (f : SWF m α),
+        (∀ (σ : Perm m) (p : Profile m α),
+            f (fun i => p (σ.toFun i)) = f p) ∧
+        SWF.Pareto f ∧ SWF.IIA f := by
+  intro ⟨f, h_equiv, hP, hI⟩
+  -- Transitivity of S_m action on Fin m (sorry: needs swap construction)
+  have h_trans : ∀ (k k' : Fin m), ∃ σ : Perm m, σ.toFun k = k' := by sorry
+  -- Every voter is a dictator
+  have h_all : ∀ k : Fin m, SWF.Dictator f k :=
+    all_voters_dictator_under_equivariance
+      (Nat.lt_of_lt_of_le Nat.zero_lt_two h2) h3 f h_equiv hP hI h_trans
+  -- For m ≥ 2 there are two distinct voters: ⟨0, _⟩ and ⟨1, _⟩
+  let k₀ : Fin m := ⟨0, Nat.lt_of_lt_of_le Nat.zero_lt_two h2⟩
+  let k₁ : Fin m := ⟨1, h2⟩
+  have hk0_ne_k1 : k₀ ≠ k₁ := by
+    intro heq
+    have : (0 : Nat) = 1 := congrArg Fin.val heq
+    exact absurd this (by decide)
+  exact no_two_dictators h2 h3 hNE f hk0_ne_k1 (h_all k₀) (h_all k₁)
 
 end UnifiedAggregation.Bridge
