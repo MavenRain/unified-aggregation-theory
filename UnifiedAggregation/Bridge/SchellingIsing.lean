@@ -168,13 +168,18 @@ def spinConfigAction (n : Nat) :
           match h with
           | DiscreteHom.id _ => rfl)))))
     | .g, .g =>
-      apply UnifiedAggregation.Functor.ext
-      · -- obj equality: ⟨X.val⟩ = ⟨X.val.flip.flip⟩ via SpinConfig.flip_flip
-        funext X
+      apply UnifiedAggregation.Functor.ext_pointwise
+      · -- pointwise obj equality: ⟨X.val⟩ = ⟨X.val.flip.flip⟩ via flip_flip
+        intro X
         exact congrArg Discrete.mk (SpinConfig.flip_flip X.val).symm
-      · -- HEq @F.map @G.map: obj-equal-but-not-definitional blocks
-        -- heq_of_eq.  Needs a transport through the flip-involution.
-        sorry
+      · -- pointwise map HEq.
+        intro X Y h
+        cases h
+        show HEq (DiscreteHom.id (⟨X.val⟩ : SpinConfigCat n))
+                 (DiscreteHom.id (⟨X.val.flip.flip⟩ : SpinConfigCat n))
+        have h_obj_X : (⟨X.val.flip.flip⟩ : SpinConfigCat n) = ⟨X.val⟩ :=
+          congrArg Discrete.mk (SpinConfig.flip_flip X.val)
+        rw [h_obj_X]
 
 /-! ## Bifurcation theorem (statement)
 
