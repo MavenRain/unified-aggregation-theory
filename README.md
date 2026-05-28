@@ -28,17 +28,30 @@ primitives (Category, Functor, NatTrans, LeftKanExtension) and
 
 ## Status
 
-**Phase 1a complete** as of `v0.1.0-phase-1a`: the categorical
-embedding of Arrow's Impossibility Theorem into the unified framework
-is fully built and the strong connection theorem is proved.
+**Phase 1b symbolic bifurcation complete** as of
+`v0.1.2-phase-1b-bifurcation-symbolic`: two of the three regimes of
+the unification trichotomy now have framework-load-bearing theorems
+proved end-to-end.
 
-Open sorries are technical residue inside the orbit-groupoid laws (4
-cast-tower HEqs in `Aggregation.lean`) and the unification trichotomy
+- **Phase 1a** (as of `v0.1.0-phase-1a`): Arrow-Impossibility regime
+  via the `S_m` action on profiles; strong connection theorem
+  `no_equivariant_constrained_swf` proved.
+- **Phase 1b foundations** (as of `v0.1.1-phase-1b-foundations`):
+  Z2Group, Spin, SpinConfig, the Z₂ action on configurations, and
+  `spinConfigAction : GAction Z2Group (SpinConfigCat n)` all proved.
+- **Phase 1b symbolic bifurcation** (this release): magnetization
+  + Hamiltonian + Z₂ invariance laws + the headline
+  `schelling_ising_z2_degeneracy` theorem proved.
+
+Open sorries are technical residue inside the orbit-groupoid laws
+(4 cast-tower HEqs in `Aggregation.lean`), the unification trichotomy
 statement (1 sorry in `Trichotomy.lean`, the long-term Phase 2+
-target).
+target), and the analytic bifurcation theorem (`schelling_ising_bifurcation`,
+needing real-valued machinery).
 
 ## Headline theorems
 
+### Phase 1a — Arrow-Impossibility regime
 In `UnifiedAggregation.Bridge.ArrowImpossibility`:
 
 - **`arrow_impossibility`** (proved): direct conjunctive restatement
@@ -48,36 +61,55 @@ In `UnifiedAggregation.Bridge.ArrowImpossibility`:
 
 - **`equivariant_dictator_transfer`** (proved): under an anonymous
   (`S_m`-equivariant) SWF, the dictator role transfers between any two
-  voters connected by a permutation.  This is the load-bearing lemma
-  that makes the framework's `GAction` structure non-decorative.
+  voters connected by a permutation.  Load-bearing lemma making the
+  framework's `GAction` structure non-decorative.
 
 - **`all_voters_dictator_under_equivariance`** (proved): combining
-  Arrow's theorem with transfer plus transitivity of `S_m` on `Fin m`,
-  every voter is a dictator under equivariance.
+  Arrow's theorem with transfer plus transitivity of `S_m`, every
+  voter is a dictator under equivariance.
 
 - **`no_two_dictators`** (proved): two distinct dictators are
-  contradictory.  Proof builds a disagreement profile using
-  `StrictPref.moveBToBottom` from arrow-cat and applies the dictator
-  hypothesis on both voters, hitting `StrictPref.asym` for the
-  contradiction.
+  contradictory; proof builds a disagreement profile using
+  `StrictPref.moveBToBottom`.
 
 - **`no_equivariant_constrained_swf`** (proved, headline): for
-  `m ≥ 2` voters, a nonempty profile space, and 3+ alternatives, no
-  SWF is simultaneously `S_m`-equivariant and Pareto + IIA.
-  arrow-cat's classical statement allows a dictator, but the
-  framework's anonymity requirement rules that out.
+  `m ≥ 2` voters, nonempty profiles, and 3+ alternatives, no SWF is
+  simultaneously `S_m`-equivariant and Pareto + IIA.
+
+### Phase 1b — Schelling-Ising regime
+In `UnifiedAggregation.Bridge.SchellingIsing`:
+
+- **`spinConfigAction`** (proved, no sorries): the `Z₂` action on
+  `SpinConfig n` lifted to a `GAction` on `SpinConfigCat n`.  Both
+  `act_one` and `act_mul` closed via `Functor.ext_pointwise`.
+
+- **`Magnetization_flip`** (proved): flipping all spins negates the
+  magnetization.  The Z₂ inversion law that makes `m = 0` the unique
+  symmetric fixed point.
+
+- **`Hamiltonian_flip`** (proved): the mean-field ferromagnetic Ising
+  Hamiltonian is Z₂-invariant.  Forces any Hamiltonian-based choice
+  rule to inherit Z₂ symmetry.
+
+- **`schelling_ising_z2_degeneracy`** (proved, headline): for
+  `n ≥ 1`, the Hamiltonian admits at least two distinct configurations
+  with equal energy (witnessed by `upConfig n` and `downConfig n`).
+  The symbolic form of bifurcation: distinct attractors of the
+  Z₂-equivariant dynamics, signature of symmetry-broken phase pairing.
 
 ## Phases
 
-- **Phase 0**: repo scaffold + type-level statement of the framework
-  (`ConfigSpace`, `ChoiceRule`, `Aggregation`, `Regimes`,
-  `Trichotomy`).  Complete.
-- **Phase 1a**: wire `arrow-cat` into the Arrow-Impossibility regime
-  via the `S_m` action on profiles; prove the strong connection
-  theorem.  Complete.
-- **Phase 1b** (next): prove Schelling-Ising mean-field with `Z_2`
-  symmetry end-to-end.  Universal cocone of `Lan_p F_β` has one
-  connected component for `β < β_c` and two for `β > β_c`.
+- **Phase 0**: repo scaffold + type-level statement of the framework.
+  Complete.
+- **Phase 1a**: wire `arrow-cat` into the Arrow-Impossibility regime.
+  Complete.
+- **Phase 1b foundations**: Z₂ group, spin configurations, GAction.
+  Complete.
+- **Phase 1b symbolic bifurcation**: magnetization + Hamiltonian +
+  Z₂ degeneracy theorem.  Complete.
+- **Phase 1b analytic bifurcation** (deferred): Boltzmann + tanh +
+  mean-field fixed-point analysis (`1 component for β < β_c, 2 for
+  β > β_c`).  Needs real-valued machinery (Mathlib).
 - **Phase 2**: Arrow-Debreu regime via Kakutani fixed-point.
 - **Phase 1a follow-ups**: close the 4 cast-tower HEq sorries in
   `Aggregation.lean` (orbit-groupoid laws + `orbitProjection.map_comp`).
@@ -90,7 +122,9 @@ UnifiedAggregation/
   ChoiceRule.lean              Functor C ⥤ D, β-parameterized family
   Discrete.lean                Discrete category construction
   SymmetricGroup.lean          Perm n + group laws, SymmetricGroup n
-  FunctorExt.lean              Functor extensionality (term-mode)
+  Z2Group.lean                 Z₂ + group laws, Z2Group : SymmetryGroup.{0}
+  FunctorExt.lean              Functor extensionality (Functor.ext and
+                               Functor.ext_pointwise, both term-mode)
   Aggregation.lean             OrbitHom + OrbitGroupoid + orbitProjection
                                + Aggregation = LeftKanExtension along orbit proj
   Regimes.lean                 IsArrowDebreuRegime, IsArrowImpossibilityRegime,
@@ -99,7 +133,11 @@ UnifiedAggregation/
   Bridge/
     ArrowImpossibility.lean    Phase 1a: arrow-cat <-> framework
                                (ProfileCat, actByPerm, profileAction,
-                                SWFasChoiceRule, the 5 headline theorems)
+                                SWFasChoiceRule, 5 headline theorems)
+    SchellingIsing.lean        Phase 1b: Z₂ regime
+                               (Spin, SpinConfig, configActByZ2,
+                                spinConfigAction, Magnetization,
+                                Hamiltonian, z2_degeneracy theorem)
 ```
 
 Every tactic block uses kan-tactics where feasible, with documented
