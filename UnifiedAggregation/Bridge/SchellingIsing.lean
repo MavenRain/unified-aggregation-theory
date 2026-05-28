@@ -250,6 +250,37 @@ theorem Magnetization_flip {n : Nat} (c : SpinConfig n) :
     rw [h_last, h_tail]
     omega
 
+/-! ## Hamiltonian (mean-field, integer-valued) -/
+
+/-- The mean-field ferromagnetic Ising Hamiltonian on a spin
+configuration, integer-valued (un-normalized by `n`):
+
+  `H(c) = -(M(c))²`
+
+This is the standard `-J Σᵢⱼ sᵢ sⱼ`-style energy specialized to the
+mean-field approximation, with coupling `J = 1` and the `1/n`
+normalization omitted (since we're staying in `Int`).  The
+normalization can be added in a rational/real-valued layer above
+this definition without changing any of the symmetry structure. -/
+def Hamiltonian {n : Nat} (c : SpinConfig n) : Int :=
+  -(Magnetization c * Magnetization c)
+
+/-- **Z₂ invariance of the Hamiltonian**: flipping all spins leaves
+the energy unchanged.  This is what makes the Boltzmann distribution
+`exp(-β H)` `Z₂`-symmetric, and what forces any anonymous (= `Z₂`-
+equivariant) choice rule based on the Hamiltonian to inherit the
+symmetry.  Spontaneous symmetry breaking at low temperatures is then
+a genuine "the dynamics has more symmetry than each individual
+attractor" phenomenon.
+
+Proved by chaining `Magnetization_flip` (which gives
+`M(c.flip) = -M(c)`) with the standard `(-x)·(-x) = x·x` law via
+`Int.neg_mul`, `Int.mul_neg`, `Int.neg_neg`. -/
+theorem Hamiltonian_flip {n : Nat} (c : SpinConfig n) :
+    Hamiltonian c.flip = Hamiltonian c := by
+  unfold Hamiltonian
+  rw [Magnetization_flip, Int.neg_mul, Int.mul_neg, Int.neg_neg]
+
 /-! ## Bifurcation theorem (statement)
 
 The Schelling-Ising headline: for the `Z_2` action on spin
