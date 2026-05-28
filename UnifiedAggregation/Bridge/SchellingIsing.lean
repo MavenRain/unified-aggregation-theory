@@ -181,6 +181,75 @@ def spinConfigAction (n : Nat) :
           congrArg Discrete.mk (SpinConfig.flip_flip X.val)
         rw [h_obj_X]
 
+/-! ## Bifurcation machinery — magnetization (order parameter)
+
+The order parameter for ferromagnetic Ising is the magnetization:
+the signed count of up-spins minus down-spins, normalized by
+configuration size.  Here we work with the un-normalized integer
+magnetization for clean recursive definitions; normalization to a
+rational/real magnetization can be layered on top.
+
+The key Z₂ symmetry property: flipping all spins negates the
+magnetization.  This is what makes `m = 0` the symmetric fixed
+point of any Z₂-equivariant dynamics, and what makes bifurcation
+to nonzero `±m_*` a genuine symmetry-breaking event. -/
+
+/-- Signed value of a single spin: `+1` for up, `-1` for down. -/
+def spinValue : Spin → Int
+  | .up => 1
+  | .down => -1
+
+/-- Flipping a spin negates its signed value. -/
+theorem spinValue_flip : ∀ s : Spin, spinValue s.flip = -spinValue s
+  | .up => rfl
+  | .down => rfl
+
+/-- Sum of signed spin values over a configuration, defined by
+recursion on `n` peeling off the last index via `Fin.last` and
+recursing on the remaining `Fin k`-indexed restriction via
+`Fin.castSucc`. -/
+def sumSpinValues : (n : Nat) → SpinConfig n → Int
+  | 0, _ => 0
+  | k + 1, c =>
+    spinValue (c (Fin.last k))
+      + sumSpinValues k (fun i => c (Fin.castSucc i))
+
+/-- Magnetization: the signed count of up-spins minus down-spins
+for a spin configuration of size `n`. -/
+def Magnetization {n : Nat} (c : SpinConfig n) : Int :=
+  sumSpinValues n c
+
+/-- **Z₂ inversion of magnetization**: flipping all spins negates the
+magnetization.  This is the key symmetry that drives spontaneous
+symmetry breaking in Ising — `m = 0` is the unique symmetric fixed
+point, and any nonzero `m_*` comes in `Z₂`-related pairs `±m_*`.
+
+Inductive proof on `n`: the last-index spin's flip negates its
+signed value (`spinValue_flip`); the tail-restriction's flip is
+the SpinConfig.flip of the restriction (rfl).  The arithmetic
+identity `-a + -b = -(a + b)` closes by `omega`. -/
+theorem Magnetization_flip {n : Nat} (c : SpinConfig n) :
+    Magnetization c.flip = -Magnetization c := by
+  induction n with
+  | zero => rfl
+  | succ k ih =>
+    show spinValue (c.flip (Fin.last k))
+          + sumSpinValues k (fun i => c.flip (Fin.castSucc i))
+       = -(spinValue (c (Fin.last k))
+          + sumSpinValues k (fun i => c (Fin.castSucc i)))
+    have h_last : spinValue (c.flip (Fin.last k))
+                  = -spinValue (c (Fin.last k)) := spinValue_flip _
+    have h_tail_eq :
+        (fun i : Fin k => c.flip (Fin.castSucc i))
+          = SpinConfig.flip (fun i : Fin k => c (Fin.castSucc i)) := rfl
+    have h_tail :
+        sumSpinValues k (fun i : Fin k => c.flip (Fin.castSucc i))
+          = -sumSpinValues k (fun i : Fin k => c (Fin.castSucc i)) := by
+      rw [h_tail_eq]
+      exact ih (fun i : Fin k => c (Fin.castSucc i))
+    rw [h_last, h_tail]
+    omega
+
 /-! ## Bifurcation theorem (statement)
 
 The Schelling-Ising headline: for the `Z_2` action on spin
