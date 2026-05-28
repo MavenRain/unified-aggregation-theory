@@ -99,15 +99,18 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
   map {_ _} f := { g := G.one, f := act.act_one.symm ▸ f }
   map_id _ := rfl
   map_comp _ _ := by
-    -- exception: uses standard `apply` instead of `kan_apply` because
-    -- OrbitHom.ext lands the g-field equality cleanly via group law.
-    -- The HEq on the f field remains sorried: it requires either
-    -- substitution on act_one (blocked by dependent elimination on
-    -- non-variable terms) or a chain of `eqRec_heq` manipulations
-    -- through the cast tower.  Tracked as Phase 1a follow-up.
     apply OrbitHom.ext
     · exact (G.one_mul G.one).symm
-    · sorry
+    · -- HEq of the f-fields.  Both sides represent f ≫ g semantically,
+      -- wrapped in different cast chains through act.act_one and
+      -- act.act_mul.  Closing requires either:
+      -- - explicit eqRec_heq applications with motive ascription
+      --   (Lean's motive inference fails on the default form), or
+      -- - a `functor.map` HEq-respecting cast lemma to handle
+      --   `(act.act G.one).map (act.act_one.symm ▸ g)`.
+      -- Tracked as Phase 1a follow-up; orthogonal to the bridge
+      -- theorems already proved.
+      sorry
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule
 `F : C ⥤ D` along the orbit projection `p : C ⥤ C // G`.
