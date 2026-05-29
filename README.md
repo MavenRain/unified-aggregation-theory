@@ -28,10 +28,12 @@ primitives (Category, Functor, NatTrans, LeftKanExtension) and
 
 ## Status
 
-**Phase 1b symbolic bifurcation complete** as of
-`v0.1.2-phase-1b-bifurcation-symbolic`: two of the three regimes of
-the unification trichotomy now have framework-load-bearing theorems
-proved end-to-end.
+**Trichotomy theorem proved end to end** as of
+`v0.2.0-trichotomy-proved`: the unification headline is now formal.
+All three regimes of the trichotomy are inhabited by load-bearing
+witnesses, and the `trichotomy` theorem proves they are exhaustive:
+every `(act, F)` falls into Arrow-Debreu, Arrow-Impossibility, or
+Schelling-Ising.
 
 - **Phase 1a** (as of `v0.1.0-phase-1a`): Arrow-Impossibility regime
   via the `S_m` action on profiles; strong connection theorem
@@ -39,15 +41,21 @@ proved end-to-end.
 - **Phase 1b foundations** (as of `v0.1.1-phase-1b-foundations`):
   Z2Group, Spin, SpinConfig, the Z₂ action on configurations, and
   `spinConfigAction : GAction Z2Group (SpinConfigCat n)` all proved.
-- **Phase 1b symbolic bifurcation** (this release): magnetization
-  + Hamiltonian + Z₂ invariance laws + the headline
-  `schelling_ising_z2_degeneracy` theorem proved.
+- **Phase 1b symbolic bifurcation** (as of
+  `v0.1.2-phase-1b-bifurcation-symbolic`): magnetization + Hamiltonian
+  + Z₂ invariance laws + the headline `schelling_ising_z2_degeneracy`
+  theorem proved.
+- **Phase 2 + Trichotomy** (this release): symbolic Arrow-Debreu
+  uniqueness via the `S_m` action on allocations
+  (`arrow_debreu_uniqueness`); helper `aggregation_dichotomy` plus the
+  classical case analysis on existential structure of `Aggregation`
+  prove the headline `trichotomy` theorem.
 
-Open sorries are technical residue inside the orbit-groupoid laws
-(4 cast-tower HEqs in `Aggregation.lean`), the unification trichotomy
-statement (1 sorry in `Trichotomy.lean`, the long-term Phase 2+
-target), and the analytic bifurcation theorem (`schelling_ising_bifurcation`,
-needing real-valued machinery).
+Open sorries are technical residue inside the orbit-groupoid laws (4
+cast-tower HEqs in `Aggregation.lean`) and the analytic bifurcation
+theorem (`schelling_ising_bifurcation`, needing real-valued
+machinery).  The trichotomy proof and all three regime witnesses
+are sorry-free.
 
 ## Headline theorems
 
@@ -97,6 +105,34 @@ In `UnifiedAggregation.Bridge.SchellingIsing`:
   The symbolic form of bifurcation: distinct attractors of the
   Z₂-equivariant dynamics, signature of symmetry-broken phase pairing.
 
+### Phase 2 — Arrow-Debreu regime
+In `UnifiedAggregation.Bridge.ArrowDebreu`:
+
+- **`Allocation.anonymous_eq_at_zero`** (proved): under the `S_m`
+  symmetry, any anonymous (equivariant) allocation is uniform across
+  consumers.  Proof swaps consumer 0 with index `i` using arrow-cat's
+  `swapMap` and applies the anonymity hypothesis at index 0.
+
+- **`arrow_debreu_uniqueness`** (proved, headline): two anonymous
+  allocations agreeing at consumer 0 are equal everywhere.  The
+  symbolic form of "unique equilibrium under convex symmetric
+  preferences": the `S_m` structure forces a canonical equal-split
+  form, hence uniqueness.
+
+- **`allocationAction`** (proved): `GAction (SymmetricGroup m)
+  (AllocationCat m)` via the same `Functor.ext` recipe as
+  `profileAction`.
+
+### Trichotomy
+In `UnifiedAggregation.Trichotomy`:
+
+- **`trichotomy`** (proved, unification headline): every aggregation
+  problem `(act, F)` falls into one of `IsArrowDebreuRegime`,
+  `IsArrowImpossibilityRegime`, or `IsSchellingIsingRegime`.  Proof
+  is classical case analysis on the existential structure of
+  `Aggregation act F`: no Lan ⇒ Arrow-Impossibility; some Lan, all
+  agree ⇒ Arrow-Debreu; some Lan, two disagree ⇒ Schelling-Ising.
+
 ## Phases
 
 - **Phase 0**: repo scaffold + type-level statement of the framework.
@@ -107,10 +143,14 @@ In `UnifiedAggregation.Bridge.SchellingIsing`:
   Complete.
 - **Phase 1b symbolic bifurcation**: magnetization + Hamiltonian +
   Z₂ degeneracy theorem.  Complete.
+- **Phase 2 (symbolic)**: Arrow-Debreu uniqueness via S_m anonymity.
+  Complete.
+- **Trichotomy**: the unification headline theorem.  Complete.
 - **Phase 1b analytic bifurcation** (deferred): Boltzmann + tanh +
   mean-field fixed-point analysis (`1 component for β < β_c, 2 for
   β > β_c`).  Needs real-valued machinery (Mathlib).
-- **Phase 2**: Arrow-Debreu regime via Kakutani fixed-point.
+- **Phase 2 (analytic)**: Arrow-Debreu existence via Kakutani fixed
+  point.  Needs Mathlib for convex sets and continuous maps.
 - **Phase 1a follow-ups**: close the 4 cast-tower HEq sorries in
   `Aggregation.lean` (orbit-groupoid laws + `orbitProjection.map_comp`).
 
@@ -138,6 +178,11 @@ UnifiedAggregation/
                                (Spin, SpinConfig, configActByZ2,
                                 spinConfigAction, Magnetization,
                                 Hamiltonian, z2_degeneracy theorem)
+    ArrowDebreu.lean           Phase 2: Arrow-Debreu regime
+                               (Allocation, IsAnonymous,
+                                anonymous_eq_at_zero,
+                                arrow_debreu_uniqueness,
+                                AllocationCat, allocationAction)
 ```
 
 Every tactic block uses kan-tactics where feasible, with documented
