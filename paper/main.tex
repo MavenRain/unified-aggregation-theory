@@ -1,0 +1,494 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{mathtools}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\lstdefinelanguage{Lean4}{
+  morekeywords={theorem,lemma,def,structure,inductive,namespace,end,
+    open,import,instance,where,fun,let,match,with,by,intro,apply,
+    exact,sorry,have,show,refine,cases,rfl,Type,Prop,Sort},
+  sensitive=true,
+  morecomment=[l]{--},
+  morecomment=[s]{/-}{-/},
+  morestring=[b]"
+}
+
+\lstset{
+  language=Lean4,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!70!black}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  stringstyle=\color{red!70!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+  framerule=0.4pt,
+  rulecolor=\color{gray!50},
+  xleftmargin=0pt,
+  xrightmargin=0pt
+}
+
+\newcommand{\Lan}{\mathrm{Lan}}
+\newcommand{\Ran}{\mathrm{Ran}}
+\newcommand{\Hom}{\mathrm{Hom}}
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\Sm}{S_{m}}
+\newcommand{\Ztwo}{\mathbb{Z}_{2}}
+\newcommand{\fpath}[1]{\texttt{#1}}
+
+\title{Arrow-Debreu, Arrow's Impossibility, and Schelling-Ising\\
+       as Regimes of a Single Categorical Construction:\\
+       A Lean 4 Formalization}
+
+\author{Onyeka Obi\\
+        MavenRain\\
+        \texttt{claude@isurvivable.cv}}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We give a Lean 4 formalization of a unification of three classical
+aggregation theorems (Arrow-Debreu equilibrium, Arrow's Impossibility
+Theorem, and the Schelling-Ising segregation model) as regimes of a
+single categorical object: the left Kan extension of a choice rule along
+the orbit projection of a symmetry group acting on a configuration
+category.  Phase~1a wires Arrow's theorem into the framework via the
+symmetric group action on preference profiles, with a strong
+no-equivariant-constrained-SWF theorem proved end to end (the
+\textit{anonymity} that the categorical $\Sm$ action encodes is shown to
+be incompatible with Pareto plus Independence of Irrelevant Alternatives
+for $m \geq 2$ voters and three or more alternatives).  Phase~1b realizes
+Schelling-Ising via the $\Ztwo$ action on spin configurations, with the
+symbolic bifurcation theorem (distinct ground states with equal
+Hamiltonian witnessing $\Ztwo$-broken attractor pairing) proved.  The
+formalization is built on top of \texttt{comp-cat-theory} (categorical
+primitives), \texttt{kan-tactics} (term-mode proof primitives) and
+\texttt{arrow-cat} (the Geanakoplos pivotal-voter proof of Arrow's
+theorem), with no Mathlib dependency.  Two of the three regimes of the
+trichotomy now have framework-load-bearing theorems proved end to end;
+the third (Arrow-Debreu via Kakutani fixed point) and the analytic form
+of the Schelling-Ising bifurcation remain as future work.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+Three of the most cited results in mathematical economics and social
+science live in disjoint mathematical communities.  The Arrow-Debreu
+existence theorem for general equilibrium~\cite{arrow-debreu-1954} sits
+in mathematical economics; Arrow's Impossibility
+Theorem~\cite{arrow-1951} sits in social choice; and the Schelling
+segregation model~\cite{schelling-1971}, formally a phase transition in
+an Ising-type system, sits in statistical mechanics and the sociophysics
+tradition that grew from it~\cite{galam-2012, bouchaud-2013}.  Each
+result is a verdict on the same underlying problem: \emph{when does a
+collection of local-level data (preferences, prices, choices, spins)
+determine a coherent global-level outcome?}  Arrow-Debreu's verdict
+is yes, under convexity.  Arrow's Impossibility's verdict is no, under
+democratic aggregation axioms.  Schelling-Ising's verdict is multi-stable
+yes, under spontaneous symmetry breaking.
+
+The categorical observation we formalize is that all three verdicts are
+properties of the same object.  Given a small category $C$ of micro-
+configurations, a group $G$ acting on $C$ by symmetries, an outcome
+category $D$, and a choice rule $F : C \to D$, the \emph{aggregation
+map} is the left Kan extension $\Lan_p F$ along the orbit projection
+$p : C \to C \sslash G$ into the action groupoid.  The three theorems
+become three regimes of when and how this Kan extension is realized:
+\begin{itemize}
+  \item \textbf{Arrow-Debreu} (convex regime): $\Lan_p F$ exists and is
+        uniquely realized, with the universal arrow giving a single
+        equilibrium per orbit.
+  \item \textbf{Arrow-Impossibility} (obstruction regime): no $\Lan_p F$
+        exists satisfying $G$-equivariance ($=$ anonymity), unanimity
+        ($=$ Pareto), and IIA-as-naturality simultaneously.
+  \item \textbf{Schelling-Ising} (multi-stable regime): $\Lan_p F$ is
+        realized by multiple non-isomorphic selectors, which bifurcate
+        with a control parameter (inverse temperature) at a critical
+        value.
+\end{itemize}
+
+The Brock-Durlauf statistical-mechanics-of-discrete-choice
+program~\cite{brock-durlauf-2001} provides a $\beta$-parametrized family
+$F_\beta$ of choice rules whose Kan extensions traverse all three
+regimes as $\beta$ varies, suggesting that the trichotomy is a phase
+diagram rather than three independent classification results.  Topological
+social choice theory~\cite{chichilnisky-1980} reformulates Arrow's
+Impossibility as the non-contractibility of an appropriate equivariant
+configuration space; the obstruction regime above is the categorical
+shadow of that topological obstruction.
+
+\paragraph{Contribution.}
+We present a Lean~4 formalization of this unification.  The contribution
+is fourfold.
+
+First, we lay out the categorical scaffolding (\fpath{ConfigSpace},
+\fpath{ChoiceRule}, \fpath{Aggregation}, \fpath{Regimes},
+\fpath{Trichotomy}) and the auxiliary infrastructure
+(\fpath{Discrete} categories, \fpath{SymmetricGroup} and \fpath{Z2Group}
+as instances of \fpath{SymmetryGroup}, two flavors of
+\fpath{Functor} extensionality including a load-bearing
+\fpath{Functor.ext\_pointwise} lemma that handles obj-equality-up-to-
+pointwise-rewrite cases).  All of this is built on
+\texttt{comp-cat-theory}~\cite{compcat-theory}, with no Mathlib
+dependency.
+
+Second, we wire Arrow's Impossibility Theorem into the framework via the
+$\Sm$ action on \fpath{Profile m \(\alpha\)} (Section~\ref{sec:phase1a}).
+The headline theorem
+\fpath{no\_equivariant\_constrained\_swf} states that no social welfare
+function over $m \geq 2$ voters and three or more alternatives can
+simultaneously be $\Sm$-equivariant and satisfy Pareto plus IIA.  Its
+proof chain (\fpath{equivariant\_dictator\_transfer},
+\fpath{all\_voters\_dictator\_under\_equivariance},
+\fpath{no\_two\_dictators}) makes the framework's
+\fpath{GAction} structure non-decorative: the anonymity that the
+categorical $\Sm$-action encodes is the very obstruction.  arrow-cat's
+classical statement~\cite{arrow-cat} permits a dictator solution; the
+framework's anonymity requirement rules that out.
+
+Third, we realize the Schelling-Ising regime via the $\Ztwo$ action on
+spin configurations (Section~\ref{sec:phase1b}).  At the categorical
+level, \fpath{spinConfigAction : GAction Z2Group (SpinConfigCat n)} is
+fully proved using \fpath{Functor.ext\_pointwise}.  At the
+phase-transition level, we define magnetization and the mean-field
+ferromagnetic Hamiltonian (integer-valued, $J = 1$), prove their $\Ztwo$
+inversion and invariance laws, and then prove a \emph{symbolic} form of
+the bifurcation theorem: \fpath{schelling\_ising\_z2\_degeneracy}
+witnesses that for $n \geq 1$ the Hamiltonian admits at least two
+distinct configurations of equal energy.  This is the structural content
+of bifurcation (distinct attractors of the $\Ztwo$-equivariant
+dynamics) captured within an Int-level foundation that needs no
+real-number machinery.
+
+Fourth, we identify what remains.  The Arrow-Debreu regime
+(Phase~2) awaits a categorical Kakutani fixed-point argument.  The
+analytic Schelling-Ising bifurcation theorem (one component for
+$\beta < \beta_c$, two for $\beta > \beta_c$, with $\beta_c$ a specific
+real number) awaits a real-valued analysis layer, most naturally
+Mathlib.  Four cast-tower \fpath{HEq} sorries in
+\fpath{Aggregation.lean}'s orbit-groupoid construction remain as
+technical debt; they are orthogonal to the headline theorems but
+prevent the orbit-groupoid laws from being fully checked.
+
+\paragraph{Outline.}
+Section~\ref{sec:object} states the central categorical object and the
+three regimes.  Section~\ref{sec:foundations} sketches the foundational
+infrastructure (discrete categories, group actions, the two Functor
+extensionality lemmas).  Section~\ref{sec:phase1a} presents the
+Arrow-Impossibility wiring.  Section~\ref{sec:phase1b} presents the
+Schelling-Ising wiring and the symbolic bifurcation theorem.
+Section~\ref{sec:discussion} discusses related work, the framework's
+load-bearing properties, and the path to closing out the remaining
+regimes and sorries.
+
+\section{The Central Object and the Three Regimes}
+\label{sec:object}
+
+\begin{definition}[Configuration space with symmetry]
+A \emph{configuration space with symmetry} is a triple $(C, G, \alpha)$
+where $C$ is a small category, $G$ is a group, and $\alpha : G \to
+\mathrm{End}(C)$ is a (covariant) action of $G$ on $C$ by endofunctors,
+that is, $\alpha(e) = \id_C$ and $\alpha(gh) = \alpha(h) \circ
+\alpha(g)$.\footnote{We use the diagrammatic ordering convention
+$\alpha(gh) = \alpha(h) \circ \alpha(g)$ throughout, matching the
+\texttt{comp-cat-theory} convention $F \circ G = F \,\fpath{⋙}\, G$
+for ``apply $F$ first, then $G$.''}
+\end{definition}
+
+\begin{definition}[Choice rule]
+A \emph{choice rule} on $(C, G, \alpha)$ valued in an outcome category
+$D$ is a functor $F : C \to D$.  A \emph{$\beta$-family of choice
+rules} is a function $\beta \mapsto F_\beta$ from a parameter type
+$\beta$ to choice rules $C \to D$.
+\end{definition}
+
+\begin{definition}[Aggregation]
+The \emph{aggregation} of a choice rule $F$ along the symmetry
+$\alpha$ is the left Kan extension
+\[
+  \mathrm{Aggregation}(\alpha, F) = \Lan_{p_\alpha} F
+\]
+of $F$ along the orbit projection $p_\alpha : C \to C \sslash G$ into
+the action groupoid.  $C \sslash G$ has the same objects as $C$ and
+morphisms $X \to Y$ given by pairs $(g, f)$ with $g \in G$ and
+$f : X \to \alpha(g)(Y)$ a morphism in $C$.
+\end{definition}
+
+The three regimes are then properties of when and how
+$\Lan_{p_\alpha} F$ is realized.
+
+\begin{description}
+  \item[Arrow-Debreu regime.] $\Lan_{p_\alpha} F$ is realized and the
+        universal cocone has a unique vertex per orbit.  Sufficient
+        condition: $F$ is valued in a convex subcategory of $D$ and the
+        action $\alpha$ is by group-of-automorphism-preserving functors.
+        The classical Arrow-Debreu existence theorem~\cite{arrow-debreu-1954}
+        is the special case where $C$ is a discrete category of
+        consumption-bundle endowments and $D$ is a category of price
+        vectors with morphisms given by the price-adjustment dynamics.
+  \item[Arrow-Impossibility regime.] No $\Lan_{p_\alpha} F$ exists that
+        simultaneously satisfies $G$-equivariance, unanimity, and
+        IIA-as-naturality.  The obstruction is a class in an equivariant
+        cohomology group (Chichilnisky's topological proof of Arrow's
+        theorem~\cite{chichilnisky-1980} is the topological version of
+        this statement).  Section~\ref{sec:phase1a} formalizes this for
+        $C =$ discrete category of preference profiles, $G = \Sm$,
+        $D =$ discrete category of strict preferences.
+  \item[Schelling-Ising regime.] $\Lan_{p_\alpha} F$ is realized but
+        multi-valued in the stack-theoretic sense: the universal cocone
+        is realized by multiple non-isomorphic selectors.  Phase
+        transitions are bifurcations in the homotopy type of the
+        selector space as a parameter (e.g.\ Brock-Durlauf's inverse
+        temperature $\beta$) varies.  Section~\ref{sec:phase1b}
+        formalizes the symbolic form of this for $C =$ discrete
+        category of spin configurations, $G = \Ztwo$, $D =$ outcome
+        space; the analytic form remains future work.
+\end{description}
+
+\begin{remark}[Symmetry as the unifying thread]
+A common thread across the three regimes is the question of which
+symmetries of the local-level data survive aggregation.  Arrow-Debreu
+preserves Pareto and budget-balance symmetries.  Arrow's Impossibility
+says certain anonymity-style symmetries cannot be jointly preserved by
+any aggregation rule.  Spontaneous symmetry breaking in Schelling-Ising
+is the statement that the dynamical realization breaks a $\Ztwo$
+symmetry that the energy functional preserves.  Reformulating these
+as statements about whether $\Lan_{p_\alpha} F$ admits a $G$-equivariant
+realization makes the symmetry content of each theorem explicit.
+\end{remark}
+
+\section{Foundations}
+\label{sec:foundations}
+
+\textit{Section to be expanded: discrete categories, group actions on
+categories, the orbit groupoid construction with explicit cast machinery
+through act\_one and act\_mul, and the two Functor extensionality
+lemmas.  The latter, Functor.ext (HEq form) and
+Functor.ext\_pointwise (pointwise form), are load-bearing for the
+Phase~1b act\_mul law and would be of independent interest as additions
+to comp-cat-theory.}
+
+\section{Phase 1a: Arrow-Impossibility via $\Sm$ equivariance}
+\label{sec:phase1a}
+
+We instantiate the framework for Arrow's setting: $C$ is the discrete
+category on \fpath{Profile m \(\alpha\)} (functions $\mathrm{Fin}\, m
+\to \mathrm{StrictPref}\, \alpha$), $G = \Sm$ (the symmetric group on
+$m$ voter indices), $D$ is the discrete category on
+$\mathrm{StrictPref}\, \alpha$.  The $\Sm$ action on profiles is the
+pointwise reindexing
+$(\sigma \cdot p)(i) = p(\sigma(i))$.
+
+\subsection{The categorical embedding}
+
+\begin{lstlisting}
+abbrev ProfileCat (m : Nat) (α : Type u) : Type u :=
+  Discrete (Profile m α)
+
+def actByPerm {m : Nat} {α : Type u} (σ : Perm m) :
+    ProfileCat m α ⥤ ProfileCat m α :=
+  discreteFunctor (fun p => fun i => p (σ.toFun i))
+
+def profileAction (m : Nat) (α : Type u) :
+    GAction (SymmetricGroup m) (ProfileCat m α) where
+  act := actByPerm
+  act_one := /- via Functor.ext + funext + heq_of_eq + match -/
+  act_mul := /- same recipe -/
+\end{lstlisting}
+
+The \fpath{act\_one} and \fpath{act\_mul} laws close via the
+\fpath{Functor.ext} recipe, exploiting structure-eta on the \fpath{Discrete}
+wrapper plus definitional proof irrelevance on the
+\fpath{map\_id} and \fpath{map\_comp} fields.
+
+\subsection{The headline theorem}
+
+The framework treats a social welfare function as a choice rule
+\fpath{SWFasChoiceRule f : ProfileCat m \(\alpha\) ⥤ Discrete
+(StrictPref \(\alpha\))} (a \fpath{discreteFunctor} applied to the
+underlying \fpath{f : SWF m \(\alpha\)}).  The headline theorem is:
+
+\begin{theorem}[no\_equivariant\_constrained\_swf]
+\label{thm:no-equivariant-constrained-swf}
+For $m \geq 2$ voters, a nonempty profile space, and three or more
+alternatives, no SWF $f : \fpath{SWF m \(\alpha\)}$ is simultaneously
+$\Sm$-equivariant and satisfies Pareto plus IIA.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The proof chain uses three intermediate lemmas, all proved in the
+formalization:
+\begin{enumerate}
+  \item \fpath{equivariant\_dictator\_transfer}: under an
+        $\Sm$-equivariant SWF, the dictator role transfers between any
+        two voters connected by a permutation.  This is the
+        load-bearing lemma: without equivariance the dictator from
+        Arrow's theorem~\cite{arrow-cat} stays fixed; with equivariance
+        it propagates.
+  \item \fpath{all\_voters\_dictator\_under\_equivariance}: combining
+        Arrow's theorem with the transfer lemma plus transitivity of
+        $\Sm$ on $\mathrm{Fin}\, m$, every voter is a dictator under
+        equivariance.  Transitivity is witnessed inline by
+        \texttt{ArrowCat.swapMap} (a swap permutation lifted to
+        $\fpath{Perm m}$ as an involutive bijection).
+  \item \fpath{no\_two\_dictators}: two distinct voters cannot both be
+        dictators.  Proof builds a disagreement profile using
+        \texttt{ArrowCat.StrictPref.moveBToBottom}: voter $k_1$ has $b$
+        moved to the bottom (so $a > b$), voter $k_2$ has $a$ moved to
+        the bottom (so $b > a$).  Both dictators then force
+        $(f p).\mathrm{pref}\, a\, b$ and $(f p).\mathrm{pref}\, b\, a$,
+        contradicting \fpath{StrictPref.asym}.
+\end{enumerate}
+For $m \geq 2$ the index $0, 1 \in \mathrm{Fin}\, m$ are distinct
+voters, and the combination of (2) and (3) closes the impossibility.
+\end{proof}
+
+\begin{remark}[Framework load-bearing]
+Theorem~\ref{thm:no-equivariant-constrained-swf} is stronger than the
+classical Arrow statement: arrow-cat's \fpath{arrow} permits a dictator
+solution to Pareto plus IIA, but the framework's
+$\Sm$-equivariance requirement turns the dictator into a contradiction
+for $m \geq 2$.  The categorical $\Sm$ action does work that the
+classical statement does not; the framework is non-decorative.
+\end{remark}
+
+\section{Phase 1b: Schelling-Ising via $\Ztwo$ symmetry}
+\label{sec:phase1b}
+
+\textit{Section to be expanded.  We instantiate the framework for
+Schelling-Ising at the symbolic level: $C$ is the discrete category
+on $\fpath{SpinConfig n}$ (functions $\fpath{Fin n} \to \fpath{Spin}$),
+$G = \Ztwo$, the action is pointwise spin flip.  The headline pieces
+are:
+\begin{itemize}
+  \item \fpath{spinConfigAction : GAction Z2Group (SpinConfigCat n)},
+        proved using \fpath{Functor.ext\_pointwise} on the
+        \fpath{act\_mul (.g, .g)} case where the obj equality requires
+        \fpath{SpinConfig.flip\_flip} rather than rfl.
+  \item \fpath{Magnetization\_flip}: flipping all spins negates the
+        magnetization.  The $\Ztwo$ inversion law for the order
+        parameter.
+  \item \fpath{Hamiltonian\_flip}: the mean-field ferromagnetic Ising
+        Hamiltonian $H(c) = -(M(c))^2$ is $\Ztwo$-invariant.  Forces
+        any Hamiltonian-based choice rule to inherit the symmetry.
+  \item \fpath{schelling\_ising\_z2\_degeneracy}: for $n \geq 1$, the
+        Hamiltonian admits at least two distinct configurations of
+        equal energy, namely \fpath{upConfig n} and \fpath{downConfig
+        n}.  The \emph{symbolic} form of bifurcation, capturing the
+        $\Ztwo$-broken attractor pairing without invoking real-valued
+        machinery.
+\end{itemize}
+The analytic form of the bifurcation theorem (one component for
+$\beta < \beta_c$, two for $\beta > \beta_c$, with $\beta_c$ a specific
+real number arising from $m = \tanh(\beta J m)$) requires real-valued
+infrastructure beyond Int and remains future work; the most natural
+path adds Mathlib as a dependency.}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\textit{Section to be expanded.  Topics: relation to topological social
+choice~\cite{chichilnisky-1980} and equivariant cohomology of the
+configuration space; relation to Brock-Durlauf's statistical-mechanics-
+of-discrete-choice~\cite{brock-durlauf-2001} as the $\beta$-family that
+traverses the regimes; the open Arrow-Debreu regime (Phase 2) and a
+sketch of a categorical Kakutani argument; the open analytic Schelling-
+Ising bifurcation theorem and the path through Mathlib; the open
+orbit-groupoid \fpath{HEq} sorries in \fpath{Aggregation.lean} and the
+prospect of a unified cast-manipulation tactic.}
+
+\section*{Reproducibility and Code Availability}
+
+The formalization is available at
+\url{https://github.com/MavenRain/unified-aggregation-theory} under a
+dual MIT/Apache-2.0 license.  The release tags
+\fpath{v0.1.0-phase-1a} and \fpath{v0.1.2-phase-1b-bifurcation-symbolic}
+correspond to the Phase~1a and Phase~1b symbolic completion states
+described above.  API documentation is auto-generated via doc-gen4 at
+\url{https://MavenRain.github.io/unified-aggregation-theory/}.
+
+Dependencies are \texttt{comp-cat-theory}, \texttt{kan-tactics}, and
+\texttt{arrow-cat}, all sibling-directory \texttt{lake require}'d.  The
+Lean toolchain is \texttt{leanprover/lean4:v4.30.0-rc2}; no Mathlib
+dependency.
+
+\begin{thebibliography}{99}
+
+\bibitem{arrow-1951}
+K.\ J.\ Arrow.
+\textit{Social Choice and Individual Values}.
+Wiley, 1951.
+
+\bibitem{arrow-debreu-1954}
+K.\ J.\ Arrow and G.\ Debreu.
+Existence of an equilibrium for a competitive economy.
+\textit{Econometrica}, 22(3):265--290, 1954.
+
+\bibitem{schelling-1971}
+T.\ C.\ Schelling.
+Dynamic models of segregation.
+\textit{Journal of Mathematical Sociology}, 1(2):143--186, 1971.
+
+\bibitem{chichilnisky-1980}
+G.\ Chichilnisky.
+Social choice and the topology of spaces of preferences.
+\textit{Advances in Mathematics}, 37(2):165--176, 1980.
+
+\bibitem{brock-durlauf-2001}
+W.\ A.\ Brock and S.\ N.\ Durlauf.
+Discrete choice with social interactions.
+\textit{Review of Economic Studies}, 68(2):235--260, 2001.
+
+\bibitem{galam-2012}
+S.\ Galam.
+\textit{Sociophysics: A Physicist's Modeling of Psycho-political
+Phenomena}.
+Springer, 2012.
+
+\bibitem{bouchaud-2013}
+J.-P.\ Bouchaud.
+Crises and collective socio-economic phenomena: simple models and
+challenges.
+\textit{Journal of Statistical Physics}, 151(3-4):567--606, 2013.
+
+\bibitem{compcat-theory}
+O.\ Obi.
+comp-cat-theory: A Lean 4 reservoir library for compositional category
+theory.
+\url{https://github.com/MavenRain/comp-cat-theory}.
+
+\bibitem{arrow-cat}
+O.\ Obi.
+arrow-cat: A Lean 4 formalization of Arrow's Impossibility Theorem via
+the Geanakoplos pivotal-voter argument.
+\url{https://github.com/MavenRain/arrow-cat}.
+
+\end{thebibliography}
+
+\end{document}
