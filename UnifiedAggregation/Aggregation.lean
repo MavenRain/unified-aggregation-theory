@@ -101,12 +101,15 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
   map_comp _ _ := by
     apply OrbitHom.ext
     · exact (G.one_mul G.one).symm
-    · -- HEq of f-fields.  Both sides represent f ≫ g semantically,
-      -- wrapped in different cast chains through act.act_one and
-      -- act.act_mul.  Closing this requires HEq machinery that
-      -- handles `▸`-rewrites under `Functor.map`, which goes beyond
-      -- what Lean's `rw`/`simp` provide without custom lemmas or
-      -- Mathlib's `cast_heq` family.  Documented as technical debt.
+    · -- HEq of f-fields.  Both sides are casts of `f ≫ g`-shaped
+      -- expressions through `act.act_one` / `act.act_mul`.
+      -- `kan-tactics`' `kan_heq_strip` handles the canonical
+      -- `Eq.recOn` / `cast` shapes (smoke-tested in
+      -- `KanTactics.Examples.HeqTransport`), but the `▸` here
+      -- elaborates via Lean's motive inference into a non-canonical
+      -- form (`Eq.mpr` of a `congrArg`).  Closing requires extending
+      -- `kan_heq_strip` with that variant, or refactoring the
+      -- `OrbitHom` cast representation.
       sorry
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule
