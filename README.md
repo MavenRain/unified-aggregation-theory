@@ -21,10 +21,11 @@ primitives (Category, Functor, NatTrans, LeftKanExtension) and
 [`arrow-cat`](../arrow-cat) for the Arrow-Impossibility regime
 (Geanakoplos pivotal-voter argument, complete with zero `sorry`s).
 
-> No Mathlib dependency.  All categorical, social-choice, and
+> Mathlib is pulled for the analytic content (real numbers,
+> `Real.tanh`, real-analysis machinery used by the mean-field
+> bifurcation theorem).  All categorical, social-choice, and Int-level
 > statistical-mechanics primitives are drawn from the comp-cat-theory
-> reservoir and the arrow-cat extension, with anything else built from
-> scratch.
+> reservoir and the arrow-cat extension.
 
 ## Status
 
@@ -51,10 +52,13 @@ Schelling-Ising.
   classical case analysis on existential structure of `Aggregation`
   prove the headline `trichotomy` theorem.
 
-Open sorries are technical residue inside the orbit-groupoid laws (4
-cast-tower HEqs in `Aggregation.lean`) and the analytic bifurcation
-theorem (`schelling_ising_bifurcation`, needing real-valued
-machinery).  The trichotomy proof and all three regime witnesses
+Open sorries are technical residue inside the orbit-groupoid laws
+(4 cast-tower HEqs in `Aggregation.lean`, slated for a custom
+HEq tactic built on top of kan-tactics) and the analytic content of
+the mean-field bifurcation theorem (`unique_fixed_point_paramagnetic`
+and `bifurcation_ferromagnetic` in `Bridge/SchellingIsing.lean`,
+slated for real-analysis lemmas via Mathlib).  The trichotomy proof,
+all three regime witnesses, and the symbolic Z₂ degeneracy theorem
 are sorry-free.
 
 ## Headline theorems
@@ -146,13 +150,18 @@ In `UnifiedAggregation.Trichotomy`:
 - **Phase 2 (symbolic)**: Arrow-Debreu uniqueness via S_m anonymity.
   Complete.
 - **Trichotomy**: the unification headline theorem.  Complete.
-- **Phase 1b analytic bifurcation** (deferred): Boltzmann + tanh +
-  mean-field fixed-point analysis (`1 component for β < β_c, 2 for
-  β > β_c`).  Needs real-valued machinery (Mathlib).
+- **Phase 1b analytic bifurcation** (in progress): Mathlib integrated;
+  real-valued statement `mean_field_bifurcation` in place;
+  `zero_is_fixed_point` proved.  Remaining: `tanh_strictMono` +
+  `tanh_lt_self` helper lemmas, then `unique_fixed_point_paramagnetic`
+  (uniqueness for `β ≤ 1`) and `bifurcation_ferromagnetic` (existence
+  of symmetric pair for `β > 1`, via IVT).
 - **Phase 2 (analytic)**: Arrow-Debreu existence via Kakutani fixed
-  point.  Needs Mathlib for convex sets and continuous maps.
+  point.  Mathlib pulled, infrastructure ready.
 - **Phase 1a follow-ups**: close the 4 cast-tower HEq sorries in
-  `Aggregation.lean` (orbit-groupoid laws + `orbitProjection.map_comp`).
+  `Aggregation.lean` (orbit-groupoid laws + `orbitProjection.map_comp`)
+  via a custom HEq tactic on top of kan-tactics that handles
+  `▸`-rewrites under `Functor.map` through `act_one` / `act_mul`.
 
 ## Architecture
 

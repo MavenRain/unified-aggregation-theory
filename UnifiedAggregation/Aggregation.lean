@@ -101,15 +101,12 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
   map_comp _ _ := by
     apply OrbitHom.ext
     · exact (G.one_mul G.one).symm
-    · -- HEq of the f-fields.  Both sides represent f ≫ g semantically,
+    · -- HEq of f-fields.  Both sides represent f ≫ g semantically,
       -- wrapped in different cast chains through act.act_one and
-      -- act.act_mul.  Closing requires either:
-      -- - explicit eqRec_heq applications with motive ascription
-      --   (Lean's motive inference fails on the default form), or
-      -- - a `functor.map` HEq-respecting cast lemma to handle
-      --   `(act.act G.one).map (act.act_one.symm ▸ g)`.
-      -- Tracked as Phase 1a follow-up; orthogonal to the bridge
-      -- theorems already proved.
+      -- act.act_mul.  Closing this requires HEq machinery that
+      -- handles `▸`-rewrites under `Functor.map`, which goes beyond
+      -- what Lean's `rw`/`simp` provide without custom lemmas or
+      -- Mathlib's `cast_heq` family.  Documented as technical debt.
       sorry
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule

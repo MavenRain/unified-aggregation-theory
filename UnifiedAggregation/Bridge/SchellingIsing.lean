@@ -30,6 +30,7 @@ import UnifiedAggregation.Z2Group
 import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Regimes
 import UnifiedAggregation.FunctorExt
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 
 set_option autoImplicit false
 
@@ -353,16 +354,66 @@ theorem schelling_ising_z2_degeneracy {n : Nat} (hn : 0 < n) :
   · exact upConfig_ne_downConfig hn
   · rw [← upConfig_flip, Hamiltonian_flip]
 
-/-! ## Bifurcation theorem (analytic, statement only)
+/-! ## Bifurcation theorem (analytic, real-valued)
 
-The classical bifurcation theorem requires real-valued machinery
-(Boltzmann, tanh, mean-field).  Stated with sorry as a long-term
-target; the symbolic `schelling_ising_z2_degeneracy` above is the
-concrete proved form within the Int-level foundation. -/
-theorem schelling_ising_bifurcation
-    {n : Nat} {D : Type} [Category.{0, 0} D]
-    {β : Type} (F : β → ChoiceRule (SpinConfigCat n) D)
-    (β_c : β) :
-    True := by sorry
+The classical mean-field bifurcation of the ferromagnetic Ising
+model: the self-consistency equation `m = tanh(β · m)` has a single
+fixed point `m = 0` for `β ≤ 1` (paramagnetic phase) and multiple
+fixed points for `β > 1` (ferromagnetic phase with `Z₂`-broken
+attractor pair `±m_*(β)` plus the unstable `m = 0`).
+
+We use Mathlib's `Real.tanh` and standard real-analysis machinery. -/
+
+/-- The mean-field self-consistency condition: `m` is a fixed point
+of the magnetization equation `m = tanh(β · m)` (with coupling
+`J = 1` so the critical inverse temperature is `β_c = 1`). -/
+def IsMeanFieldFixedPoint (β m : ℝ) : Prop :=
+  m = Real.tanh (β * m)
+
+/-- Zero is always a mean-field fixed point: `0 = tanh(0)`. -/
+theorem zero_is_fixed_point (β : ℝ) : IsMeanFieldFixedPoint β 0 := by
+  unfold IsMeanFieldFixedPoint
+  simp [Real.tanh_zero]
+
+/-- For `β ≤ 1` (paramagnetic phase), `m = 0` is the unique
+mean-field fixed point.
+
+Proof sketch (deferred): the function `f(m) = tanh(β · m) - m` has
+`f'(m) = β · sech²(β m) - 1 = β / cosh²(β m) - 1`.  For `β ≤ 1` and
+`m ≠ 0`, `cosh²(β m) > 1`, so `f'(m) < 0`.  Combined with `f(0) = 0`
+this gives `f(m) ≠ 0` for `m ≠ 0`, hence uniqueness. -/
+theorem unique_fixed_point_paramagnetic (β : ℝ) (_hβ : β ≤ 1) :
+    ∀ m : ℝ, IsMeanFieldFixedPoint β m → m = 0 := by sorry
+
+/-- For `β > 1` (ferromagnetic phase), there exist two distinct
+non-zero mean-field fixed points (the `Z₂`-symmetric attractor pair).
+
+Proof sketch (deferred): consider `g(m) = tanh(β · m)`.  At `m = 0`,
+`g'(0) = β > 1`, so `g` crosses the diagonal `y = m` with slope `> 1`
+near zero.  Since `g` is bounded by `±1` and odd, `g(m) - m` changes
+sign in `(0, 1)` and in `(-1, 0)` by the intermediate value theorem,
+yielding two symmetric non-zero solutions. -/
+theorem bifurcation_ferromagnetic (β : ℝ) (_hβ : 1 < β) :
+    ∃ m₁ m₂ : ℝ, m₁ ≠ m₂ ∧ m₁ ≠ 0 ∧ m₂ ≠ 0 ∧
+      IsMeanFieldFixedPoint β m₁ ∧ IsMeanFieldFixedPoint β m₂ := by sorry
+
+/-- **The mean-field bifurcation theorem**.  The number of solutions
+of the self-consistency equation `m = tanh(β · m)` bifurcates at
+`β_c = 1`: a unique solution `m = 0` for `β ≤ 1`, and multiple
+distinct solutions (including the symmetry-broken pair `±m_*`) for
+`β > 1`.
+
+This is the analytic form of `schelling_ising_z2_degeneracy`: that
+result captured the structural content (distinct configurations
+with equal Hamiltonian) at the Int level; this captures the
+real-valued phase-transition content at `β_c`. -/
+theorem mean_field_bifurcation :
+    (∀ β : ℝ, β ≤ 1 → ∀ m : ℝ, IsMeanFieldFixedPoint β m → m = 0) ∧
+    (∀ β : ℝ, 1 < β → ∃ m₁ m₂ : ℝ, m₁ ≠ m₂ ∧
+       IsMeanFieldFixedPoint β m₁ ∧ IsMeanFieldFixedPoint β m₂) :=
+  ⟨unique_fixed_point_paramagnetic,
+   fun β hβ =>
+     let ⟨m₁, m₂, h_ne, _, _, h₁, h₂⟩ := bifurcation_ferromagnetic β hβ
+     ⟨m₁, m₂, h_ne, h₁, h₂⟩⟩
 
 end UnifiedAggregation.Bridge
