@@ -65,13 +65,17 @@ substitutions, and the `compFunctor` family
 through underlying `Category.comp_id` / `id_comp` / `assoc` and
 `Functor.map_id` / `map_comp` Eq → HEq lifts via `heq_of_eq`.
 
-The only remaining sorries are the analytic content of the
-mean-field bifurcation theorem (`unique_fixed_point_paramagnetic`
-and `bifurcation_ferromagnetic` in `Bridge/SchellingIsing.lean`),
-slated for real-analysis lemmas via Mathlib.  The trichotomy
-proof, all three regime witnesses, the symbolic Z₂ degeneracy
-theorem, and the full orbit-groupoid category structure are
-sorry-free.
+The paramagnetic side of the mean-field bifurcation theorem is
+now also closed: `unique_fixed_point_paramagnetic` follows from
+two local Mathlib-derived helpers, `Real.tanh_strictMono` and
+`Real.tanh_lt_self_of_pos` (the second built via
+`strictMonoOn_of_hasDerivWithinAt_pos` on
+`g(t) = t·cosh t - sinh t`).  The single remaining sorry is
+`bifurcation_ferromagnetic` (the β > 1 existence of a
+symmetry-broken pair), slated for an IVT-based proof on
+`tanh(β·) - id`.  The trichotomy proof, all three regime
+witnesses, the symbolic Z₂ degeneracy theorem, and the full
+orbit-groupoid category structure are sorry-free.
 
 ## Headline theorems
 

@@ -31,6 +31,8 @@ import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Regimes
 import UnifiedAggregation.FunctorExt
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.DerivHyp
+import Mathlib.Analysis.Calculus.Deriv.MeanValue
 
 set_option autoImplicit false
 
@@ -375,15 +377,107 @@ theorem zero_is_fixed_point (β : ℝ) : IsMeanFieldFixedPoint β 0 := by
   unfold IsMeanFieldFixedPoint
   simp [Real.tanh_zero]
 
+/-! ### Analytic helpers
+
+The next two lemmas (`Real.tanh` strictly monotone, and
+`Real.tanh x < x` for `x > 0`) are required for the paramagnetic
+uniqueness proof but are not in Mathlib's `Real.tanh` API.  Both
+are derived from the `Real.sinh` / `Real.cosh` machinery via
+Mathlib tactics; this is a documented exception to the
+kan-tactics-only convention since the proofs are real-analytic
+identities for which kan-tactics has no equivalents. -/
+
+/-- `Real.tanh` is strictly monotone.  Derived from
+`Real.sinh_sub` and `Real.sinh_pos_iff` via the identity
+`sinh y · cosh x - sinh x · cosh y = sinh(y - x)`. -/
+theorem Real.tanh_strictMono : StrictMono Real.tanh := by
+  intro x y hxy
+  rw [Real.tanh_eq_sinh_div_cosh, Real.tanh_eq_sinh_div_cosh,
+      div_lt_div_iff₀ (Real.cosh_pos x) (Real.cosh_pos y)]
+  have h_sub : Real.sinh y * Real.cosh x - Real.sinh x * Real.cosh y
+      = Real.sinh (y - x) := by
+    rw [Real.sinh_sub]; ring
+  have h_sinh_pos : 0 < Real.sinh (y - x) :=
+    Real.sinh_pos_iff.mpr (sub_pos.mpr hxy)
+  linarith
+
+/-- For `x > 0`, `Real.tanh x < x`.  Proof: consider
+`g(t) = t · cosh t - sinh t`.  Then `g(0) = 0` and
+`g'(t) = t · sinh t > 0` for `t > 0`, so `g(x) > 0` for `x > 0`,
+i.e., `sinh x < x · cosh x`, i.e., `tanh x < x`. -/
+theorem Real.tanh_lt_self_of_pos {x : ℝ} (hx : 0 < x) :
+    Real.tanh x < x := by
+  suffices h : Real.sinh x < x * Real.cosh x by
+    rw [Real.tanh_eq_sinh_div_cosh, div_lt_iff₀ (Real.cosh_pos x)]
+    exact h
+  -- g(t) = t · cosh t - sinh t.  g(0) = 0, g'(t) = t · sinh t > 0 for t > 0.
+  have h_deriv : ∀ t, HasDerivAt (fun s => s * Real.cosh s - Real.sinh s)
+                                  (t * Real.sinh t) t := by
+    intro t
+    have h₁ : HasDerivAt (fun s => s * Real.cosh s)
+                          (1 * Real.cosh t + t * Real.sinh t) t :=
+      (hasDerivAt_id t).mul (Real.hasDerivAt_cosh t)
+    have h₂ : HasDerivAt Real.sinh (Real.cosh t) t := Real.hasDerivAt_sinh t
+    convert h₁.sub h₂ using 1
+    ring
+  have h_mono : StrictMonoOn (fun s => s * Real.cosh s - Real.sinh s)
+                              (Set.Ici 0) :=
+    strictMonoOn_of_hasDerivWithinAt_pos (convex_Ici 0)
+      (fun t _ => (h_deriv t).continuousAt.continuousWithinAt)
+      (fun t _ => (h_deriv t).hasDerivWithinAt)
+      (fun t ht => by
+        have ht_pos : 0 < t := by
+          simp only [interior_Ici, Set.mem_Ioi] at ht; exact ht
+        exact mul_pos ht_pos (Real.sinh_pos_iff.mpr ht_pos))
+  have h_zero : (fun s => s * Real.cosh s - Real.sinh s) 0 = 0 := by
+    simp [Real.cosh_zero, Real.sinh_zero]
+  have h_gt : 0 < x * Real.cosh x - Real.sinh x := by
+    have := h_mono (Set.self_mem_Ici) (Set.mem_Ici.mpr hx.le) hx
+    rw [h_zero] at this
+    exact this
+  linarith
+
 /-- For `β ≤ 1` (paramagnetic phase), `m = 0` is the unique
 mean-field fixed point.
 
-Proof sketch (deferred): the function `f(m) = tanh(β · m) - m` has
-`f'(m) = β · sech²(β m) - 1 = β / cosh²(β m) - 1`.  For `β ≤ 1` and
-`m ≠ 0`, `cosh²(β m) > 1`, so `f'(m) < 0`.  Combined with `f(0) = 0`
-this gives `f(m) ≠ 0` for `m ≠ 0`, hence uniqueness. -/
-theorem unique_fixed_point_paramagnetic (β : ℝ) (_hβ : β ≤ 1) :
-    ∀ m : ℝ, IsMeanFieldFixedPoint β m → m = 0 := by sorry
+Proof: assume `m = tanh(β·m)` with `m ≠ 0`.  WLOG `m > 0` (the
+`m < 0` case follows by `Real.tanh_neg`).  Then `β·m ≤ m` (since
+`β ≤ 1` and `m > 0`), so `tanh(β·m) ≤ tanh(m)` by monotonicity.
+Combined with `m = tanh(β·m)` we get `m ≤ tanh(m)`.  But `m > 0`
+implies `tanh(m) < m`, contradiction. -/
+theorem unique_fixed_point_paramagnetic (β : ℝ) (hβ : β ≤ 1) :
+    ∀ m : ℝ, IsMeanFieldFixedPoint β m → m = 0 := by
+  intro m h
+  unfold IsMeanFieldFixedPoint at h
+  by_contra h_m_ne
+  rcases lt_or_gt_of_ne h_m_ne with h_m_neg | h_m_pos
+  · -- m < 0 case.
+    have h_neg_pos : 0 < -m := neg_pos.mpr h_m_neg
+    have h' : -m = Real.tanh (β * -m) := by
+      rw [mul_neg, Real.tanh_neg, ← h]
+    have h_le : β * -m ≤ -m := by
+      rcases le_or_gt 0 β with hβ_pos | hβ_neg
+      · calc β * -m
+            ≤ 1 * -m := mul_le_mul_of_nonneg_right hβ h_neg_pos.le
+          _ = -m := one_mul _
+      · have h_np : β * -m < 0 := mul_neg_of_neg_of_pos hβ_neg h_neg_pos
+        linarith
+    have h_chain : -m ≤ Real.tanh (-m) :=
+      h'.le.trans (Real.tanh_strictMono.monotone h_le)
+    have h_lt : Real.tanh (-m) < -m := Real.tanh_lt_self_of_pos h_neg_pos
+    linarith
+  · -- m > 0 case.
+    have h_le : β * m ≤ m := by
+      rcases le_or_gt 0 β with hβ_pos | hβ_neg
+      · calc β * m
+            ≤ 1 * m := mul_le_mul_of_nonneg_right hβ h_m_pos.le
+          _ = m := one_mul _
+      · have h_np : β * m < 0 := mul_neg_of_neg_of_pos hβ_neg h_m_pos
+        linarith
+    have h_chain : m ≤ Real.tanh m :=
+      h.le.trans (Real.tanh_strictMono.monotone h_le)
+    have h_lt : Real.tanh m < m := Real.tanh_lt_self_of_pos h_m_pos
+    linarith
 
 /-- For `β > 1` (ferromagnetic phase), there exist two distinct
 non-zero mean-field fixed points (the `Z₂`-symmetric attractor pair).
