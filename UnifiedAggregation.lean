@@ -2,6 +2,7 @@
 -- Import modules here that should be built as part of the library.
 
 import UnifiedAggregation.FunctorExt
+import UnifiedAggregation.HeqTransport
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.ConfigSpace
 import UnifiedAggregation.SymmetricGroup

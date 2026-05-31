@@ -53,13 +53,16 @@ Schelling-Ising.
   prove the headline `trichotomy` theorem.
 
 Open sorries are technical residue inside the orbit-groupoid laws
-(4 cast-tower HEqs in `Aggregation.lean`, slated for a custom
-HEq tactic built on top of kan-tactics) and the analytic content of
-the mean-field bifurcation theorem (`unique_fixed_point_paramagnetic`
+(4 cast-tower HEqs in `Aggregation.lean`; the outer-cast layer is
+peeled by the in-house `heq_strip` tactic in
+`UnifiedAggregation.HeqTransport`, but closing also needs HEq
+congruence under `≫` and `Functor.map` plus the `idFunctor`
+collapse of `act.act G.one`) and the analytic content of the
+mean-field bifurcation theorem (`unique_fixed_point_paramagnetic`
 and `bifurcation_ferromagnetic` in `Bridge/SchellingIsing.lean`,
-slated for real-analysis lemmas via Mathlib).  The trichotomy proof,
-all three regime witnesses, and the symbolic Z₂ degeneracy theorem
-are sorry-free.
+slated for real-analysis lemmas via Mathlib).  The trichotomy
+proof, all three regime witnesses, and the symbolic Z₂ degeneracy
+theorem are sorry-free.
 
 ## Headline theorems
 
@@ -159,9 +162,11 @@ In `UnifiedAggregation.Trichotomy`:
 - **Phase 2 (analytic)**: Arrow-Debreu existence via Kakutani fixed
   point.  Mathlib pulled, infrastructure ready.
 - **Phase 1a follow-ups**: close the 4 cast-tower HEq sorries in
-  `Aggregation.lean` (orbit-groupoid laws + `orbitProjection.map_comp`)
-  via a custom HEq tactic on top of kan-tactics that handles
-  `▸`-rewrites under `Functor.map` through `act_one` / `act_mul`.
+  `Aggregation.lean` (orbit-groupoid laws + `orbitProjection.map_comp`).
+  Outer-cast peeling is in place via `UnifiedAggregation.HeqTransport`
+  (`heq_strip`).  Remaining: HEq congruence machinery for `≫` and
+  `Functor.map`, plus the `idFunctor` collapse of `act.act G.one`
+  via `act_one`.
 
 ## Architecture
 
@@ -174,6 +179,11 @@ UnifiedAggregation/
   Z2Group.lean                 Z₂ + group laws, Z2Group : SymmetryGroup.{0}
   FunctorExt.lean              Functor extensionality (Functor.ext and
                                Functor.ext_pointwise, both term-mode)
+  HeqTransport.lean            HEq cast-stripping tactics (heq_strip
+                               and its component uncasts) for outer-layer
+                               casts in `▸` notation, including the
+                               dependent-motive form Lean produces under
+                               `Functor.obj`
   Aggregation.lean             OrbitHom + OrbitGroupoid + orbitProjection
                                + Aggregation = LeftKanExtension along orbit proj
   Regimes.lean                 IsArrowDebreuRegime, IsArrowImpossibilityRegime,

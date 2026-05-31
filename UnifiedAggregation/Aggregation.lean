@@ -18,6 +18,7 @@
 -/
 
 import UnifiedAggregation.ChoiceRule
+import UnifiedAggregation.HeqTransport
 import CompCatTheory.Primitive.KanExtension
 
 set_option autoImplicit false
@@ -101,15 +102,21 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
   map_comp _ _ := by
     apply OrbitHom.ext
     · exact (G.one_mul G.one).symm
-    · -- HEq of f-fields.  Both sides are casts of `f ≫ g`-shaped
-      -- expressions through `act.act_one` / `act.act_mul`.
-      -- `kan-tactics`' `kan_heq_strip` handles the canonical
-      -- `Eq.recOn` / `cast` shapes (smoke-tested in
-      -- `KanTactics.Examples.HeqTransport`), but the `▸` here
-      -- elaborates via Lean's motive inference into a non-canonical
-      -- form (`Eq.mpr` of a `congrArg`).  Closing requires extending
-      -- `kan_heq_strip` with that variant, or refactoring the
-      -- `OrbitHom` cast representation.
+    · -- `heq_strip` (from `UnifiedAggregation.HeqTransport`) peels
+      -- the outer `act.act_one` / `act.act_mul` casts on each side.
+      -- The interleaved `dsimp only []` reduces structure-literal
+      -- projections (`.f`, `.g`) exposed by the composition unfold
+      -- after the first `heq_strip` pass.
+      dsimp only []
+      heq_strip
+      dsimp only []
+      heq_strip
+      -- Residual goal: `HEq (f ≫ g) ((act_one.symm ▸ f) ≫
+      --                              (act.act G.one).map (act_one.symm ▸ g))`.
+      -- Closing this requires HEq congruence for `≫` and
+      -- `Functor.map`, plus the `idFunctor` collapse of
+      -- `act.act G.one` (via `act_one`).  Not yet handled by
+      -- `heq_strip` (which only strips outer casts).
       sorry
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule
