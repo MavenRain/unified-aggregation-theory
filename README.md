@@ -52,14 +52,16 @@ Schelling-Ising.
   classical case analysis on existential structure of `Aggregation`
   prove the headline `trichotomy` theorem.
 
-Open sorries are technical residue inside the orbit-groupoid
-laws (3 cast-tower HEqs in `Aggregation.lean`: `comp_id`,
-`id_comp`, `assoc` of `orbitGroupoidCategory`).
-`orbitProjection.map_comp` is now closed end-to-end via the
-in-house `heq_strip` + `heq_comp` + `idFunctor`-collapse stack in
-`UnifiedAggregation.HeqTransport`; the same template applies to
-the remaining three with additional inner `Functor.map_id` /
-`Category.comp_id` reductions, slated for the next round.
+Open sorries are reduced to the orbit-groupoid associator
+(`assoc` of `orbitGroupoidCategory` in `Aggregation.lean`):
+`comp_id`, `id_comp`, and `orbitProjection.map_comp` are now
+closed end-to-end via the in-house `heq_strip` + `heq_comp` /
+`heq_functor_map` + `idFunctor`-collapse stack in
+`UnifiedAggregation.HeqTransport`, bridged through
+`Category.comp_id` / `id_comp` and `Functor.map_id` as Eq → HEq
+lifts via `heq_of_eq`.  The `assoc` residual is the pentagon
+identity, which additionally needs `Functor.map_comp` and
+`act_mul`-as-functor-composition; slated for the next round.
 The analytic content of the mean-field bifurcation theorem
 (`unique_fixed_point_paramagnetic` and `bifurcation_ferromagnetic`
 in `Bridge/SchellingIsing.lean`) is slated for real-analysis
@@ -163,13 +165,15 @@ In `UnifiedAggregation.Trichotomy`:
   of symmetric pair for `β > 1`, via IVT).
 - **Phase 2 (analytic)**: Arrow-Debreu existence via Kakutani fixed
   point.  Mathlib pulled, infrastructure ready.
-- **Phase 1a follow-ups**: 1 of 4 cast-tower HEq sorries closed
-  (`orbitProjection.map_comp`) using `UnifiedAggregation.HeqTransport`
-  (`heq_strip` for outer-cast peeling, `heq_comp` + `idFunctor`-collapse
-  lemmas for the inner closure).  Remaining: the three
-  `orbitGroupoidCategory` laws (`comp_id`, `id_comp`, `assoc`), which
-  follow the same template plus inner `Functor.map_id` and
-  `Category.comp_id`/`id_comp` reductions.
+- **Phase 1a follow-ups**: 3 of 4 cast-tower HEq sorries closed
+  (`orbitProjection.map_comp`, `comp_id`, `id_comp`) using
+  `UnifiedAggregation.HeqTransport` (`heq_strip` for outer-cast
+  peeling, `heq_comp` + `heq_functor_map` for HEq congruence,
+  `idFunctor`-collapse lemmas plus `heq_of_eq` bridges through
+  `Category.comp_id` / `id_comp` and `Functor.map_id`).
+  Remaining: the `assoc` law of `orbitGroupoidCategory`, the
+  pentagon residual, which additionally needs `Functor.map_comp`
+  and `act_mul`-as-functor-composition.
 
 ## Architecture
 
