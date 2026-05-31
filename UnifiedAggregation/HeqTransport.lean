@@ -1,4 +1,5 @@
 import Lean
+import CompCatTheory.Foundation.Category
 
 /-!
 # UnifiedAggregation.HeqTransport
@@ -48,11 +49,11 @@ cast machinery does not reduce to any of those.
 
 namespace UnifiedAggregation
 
-open Lean Meta Elab Tactic
+open Lean Meta Elab Tactic CompCatTheory Category
 
 set_option autoImplicit false
 
-universe u v
+universe u v u₁ v₁ u₂ v₂
 
 /-- Helper for stripping an `Eq.rec` cast under a dependent motive.
 Takes the equation explicitly so motive inference proceeds from the
@@ -157,6 +158,76 @@ elab_rules : tactic
     loop 64
     let _ <- tryTac reflTac
     pure ()
+
+/-! ## HEq congruence lemmas
+
+After `heq_strip` peels outer casts, the remaining HEq goals
+typically have the casts pushed into structural subterms
+(composition `≫`, functor application `.map`).  The lemmas below
+push HEq through those subterms via case-analysis on the type
+equations involved. -/
+
+/-- HEq congruence for categorical composition `≫`.  Given object
+equalities `Y₁ = Y₂` and `Z₁ = Z₂` that align the intermediate and
+terminal objects, plus HEqs on the morphism pieces, the composed
+morphisms are HEq.
+
+The object equalities are needed because `≫` has a dependent
+type: changing the intermediate object changes the types of both
+arguments simultaneously. -/
+theorem heq_comp {Obj : Type u} [Category.{u, v} Obj]
+    {X Y₁ Y₂ Z₁ Z₂ : Obj} (hY : Y₁ = Y₂) (hZ : Z₁ = Z₂)
+    {f₁ : Category.Hom X Y₁} {f₂ : Category.Hom X Y₂} (hf : HEq f₁ f₂)
+    {g₁ : Category.Hom Y₁ Z₁} {g₂ : Category.Hom Y₂ Z₂} (hg : HEq g₁ g₂) :
+    HEq (f₁ ≫ g₁) (f₂ ≫ g₂) := by
+  cases hY
+  cases hZ
+  cases hf
+  cases hg
+  exact HEq.refl _
+
+/-- HEq congruence for `Functor.map`.  Given functor equality
+`F = G` and object equalities `X₁ = X₂`, `Y₁ = Y₂` aligning the
+domain and codomain, plus an HEq on the morphism, the mapped
+morphisms are HEq. -/
+theorem heq_functor_map {C : Type u₁} [Category.{u₁, v₁} C]
+    {D : Type u₂} [Category.{u₂, v₂} D]
+    {F G : C ⥤ D} (hFG : F = G)
+    {X₁ X₂ Y₁ Y₂ : C} (hX : X₁ = X₂) (hY : Y₁ = Y₂)
+    {f₁ : Category.Hom X₁ Y₁} {f₂ : Category.Hom X₂ Y₂} (hf : HEq f₁ f₂) :
+    HEq (F.map f₁) (G.map f₂) := by
+  cases hFG
+  cases hX
+  cases hY
+  cases hf
+  exact HEq.refl _
+
+/-- If a functor equals `Functor.idFunctor`, then `F.map f` is HEq
+to `f`.  Used to collapse `act.act G.one`-applications via the
+group action's `act_one` law. -/
+theorem idFunctor_map_heq {C : Type u} [Category.{u, v} C]
+    {F : C ⥤ C} (hF : F = Functor.idFunctor C)
+    {X Y : C} (f : Category.Hom X Y) :
+    HEq (F.map f) f := by
+  cases hF
+  exact HEq.refl _
+
+/-- If a functor equals `Functor.idFunctor`, then `F.obj X = X`.
+Companion to `idFunctor_map_heq` for the object-level collapse. -/
+theorem idFunctor_obj_eq {C : Type u} [Category.{u, v} C]
+    {F : C ⥤ C} (hF : F = Functor.idFunctor C) (X : C) :
+    F.obj X = X := by
+  cases hF
+  rfl
+
+/-- Two-fold version of `idFunctor_obj_eq`: under `F = idFunctor`,
+`F.obj (F.obj X) = X`.  Needed for the orbit-groupoid `map_comp`
+where the cast tower carries two `act_one` substitutions. -/
+theorem idFunctor_obj_eq_twice {C : Type u} [Category.{u, v} C]
+    {F : C ⥤ C} (hF : F = Functor.idFunctor C) (X : C) :
+    F.obj (F.obj X) = X := by
+  cases hF
+  rfl
 
 /-! ## Smoke tests
 

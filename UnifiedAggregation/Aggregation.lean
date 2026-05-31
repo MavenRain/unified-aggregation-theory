@@ -71,10 +71,11 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
       f := (act.act_mul p.g q.g).symm ▸ (p.f ≫ (act.act p.g).map q.f) }
   -- The g-field of each law closes by direct application of the
   -- corresponding SymmetryGroup law (mul_one, one_mul, mul_assoc).
-  -- The HEq on the f-field is the same obstruction as
-  -- orbitProjection.map_comp's HEq sorry: it needs cast-tower
-  -- manipulation through act_one / act_mul.  Tracked as Phase 1a
-  -- follow-up; the structural skeleton is in place.
+  -- The HEq on the f-field follows the same template as the
+  -- `orbitProjection.map_comp` closure below (heq_strip + heq_comp
+  -- + idFunctor collapse) but with additional `Functor.map_id` /
+  -- `Category.comp_id` / `Category.id_comp` reductions inside the
+  -- composition.  Sorried pending the next round.
   comp_id := fun p => by
     apply OrbitHom.ext
     · exact G.mul_one p.g
@@ -99,25 +100,31 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
   obj X := { val := X }
   map {_ _} f := { g := G.one, f := act.act_one.symm ▸ f }
   map_id _ := rfl
-  map_comp _ _ := by
+  map_comp {X Y Z} f g := by
     apply OrbitHom.ext
     · exact (G.one_mul G.one).symm
-    · -- `heq_strip` (from `UnifiedAggregation.HeqTransport`) peels
-      -- the outer `act.act_one` / `act.act_mul` casts on each side.
-      -- The interleaved `dsimp only []` reduces structure-literal
-      -- projections (`.f`, `.g`) exposed by the composition unfold
-      -- after the first `heq_strip` pass.
+    · -- `heq_strip` peels the outer `act.act_one` / `act.act_mul`
+      -- casts on each side.  The interleaved `dsimp only []`
+      -- reduces structure-literal projections exposed by the
+      -- composition unfold after the first pass.
       dsimp only []
       heq_strip
       dsimp only []
       heq_strip
-      -- Residual goal: `HEq (f ≫ g) ((act_one.symm ▸ f) ≫
-      --                              (act.act G.one).map (act_one.symm ▸ g))`.
-      -- Closing this requires HEq congruence for `≫` and
-      -- `Functor.map`, plus the `idFunctor` collapse of
-      -- `act.act G.one` (via `act_one`).  Not yet handled by
-      -- `heq_strip` (which only strips outer casts).
-      sorry
+      -- Residual: `HEq (f ≫ g) (cast_f ≫ (act.act G.one).map cast_g)`.
+      -- Close via HEq congruence for `≫` plus the `idFunctor`
+      -- collapse of `act.act G.one`.  Motive made explicit
+      -- (Lean's higher-order inference for `▸` with
+      -- `fun F => Hom X (F.obj Y)`-shaped motives is ambiguous).
+      refine heq_comp ?_ ?_ ?_ ?_
+      · exact (idFunctor_obj_eq act.act_one _).symm
+      · exact (idFunctor_obj_eq_twice act.act_one _).symm
+      · exact (eqRec_heq_dep (motive := fun F _ => Hom X (F.obj Y))
+          act.act_one.symm f).symm
+      · exact HEq.trans (eqRec_heq_dep
+          (motive := fun F _ => Hom Y (F.obj Z))
+          act.act_one.symm g).symm
+          (idFunctor_map_heq act.act_one _).symm
 
 /-- **Aggregation** is the *left Kan extension* of a choice rule
 `F : C ⥤ D` along the orbit projection `p : C ⥤ C // G`.

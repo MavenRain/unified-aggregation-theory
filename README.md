@@ -52,17 +52,19 @@ Schelling-Ising.
   classical case analysis on existential structure of `Aggregation`
   prove the headline `trichotomy` theorem.
 
-Open sorries are technical residue inside the orbit-groupoid laws
-(4 cast-tower HEqs in `Aggregation.lean`; the outer-cast layer is
-peeled by the in-house `heq_strip` tactic in
-`UnifiedAggregation.HeqTransport`, but closing also needs HEq
-congruence under `≫` and `Functor.map` plus the `idFunctor`
-collapse of `act.act G.one`) and the analytic content of the
-mean-field bifurcation theorem (`unique_fixed_point_paramagnetic`
-and `bifurcation_ferromagnetic` in `Bridge/SchellingIsing.lean`,
-slated for real-analysis lemmas via Mathlib).  The trichotomy
-proof, all three regime witnesses, and the symbolic Z₂ degeneracy
-theorem are sorry-free.
+Open sorries are technical residue inside the orbit-groupoid
+laws (3 cast-tower HEqs in `Aggregation.lean`: `comp_id`,
+`id_comp`, `assoc` of `orbitGroupoidCategory`).
+`orbitProjection.map_comp` is now closed end-to-end via the
+in-house `heq_strip` + `heq_comp` + `idFunctor`-collapse stack in
+`UnifiedAggregation.HeqTransport`; the same template applies to
+the remaining three with additional inner `Functor.map_id` /
+`Category.comp_id` reductions, slated for the next round.
+The analytic content of the mean-field bifurcation theorem
+(`unique_fixed_point_paramagnetic` and `bifurcation_ferromagnetic`
+in `Bridge/SchellingIsing.lean`) is slated for real-analysis
+lemmas via Mathlib.  The trichotomy proof, all three regime
+witnesses, and the symbolic Z₂ degeneracy theorem are sorry-free.
 
 ## Headline theorems
 
@@ -161,12 +163,13 @@ In `UnifiedAggregation.Trichotomy`:
   of symmetric pair for `β > 1`, via IVT).
 - **Phase 2 (analytic)**: Arrow-Debreu existence via Kakutani fixed
   point.  Mathlib pulled, infrastructure ready.
-- **Phase 1a follow-ups**: close the 4 cast-tower HEq sorries in
-  `Aggregation.lean` (orbit-groupoid laws + `orbitProjection.map_comp`).
-  Outer-cast peeling is in place via `UnifiedAggregation.HeqTransport`
-  (`heq_strip`).  Remaining: HEq congruence machinery for `≫` and
-  `Functor.map`, plus the `idFunctor` collapse of `act.act G.one`
-  via `act_one`.
+- **Phase 1a follow-ups**: 1 of 4 cast-tower HEq sorries closed
+  (`orbitProjection.map_comp`) using `UnifiedAggregation.HeqTransport`
+  (`heq_strip` for outer-cast peeling, `heq_comp` + `idFunctor`-collapse
+  lemmas for the inner closure).  Remaining: the three
+  `orbitGroupoidCategory` laws (`comp_id`, `id_comp`, `assoc`), which
+  follow the same template plus inner `Functor.map_id` and
+  `Category.comp_id`/`id_comp` reductions.
 
 ## Architecture
 
@@ -183,7 +186,9 @@ UnifiedAggregation/
                                and its component uncasts) for outer-layer
                                casts in `▸` notation, including the
                                dependent-motive form Lean produces under
-                               `Functor.obj`
+                               `Functor.obj`; plus HEq congruence lemmas
+                               for `≫` / `Functor.map` and `idFunctor`-
+                               collapse helpers
   Aggregation.lean             OrbitHom + OrbitGroupoid + orbitProjection
                                + Aggregation = LeftKanExtension along orbit proj
   Regimes.lean                 IsArrowDebreuRegime, IsArrowImpossibilityRegime,
