@@ -49,7 +49,7 @@ cast machinery does not reduce to any of those.
 
 namespace UnifiedAggregation
 
-open Lean Meta Elab Tactic CompCatTheory Category
+open Lean Meta Elab Tactic CompCatTheory Category Functor
 
 set_option autoImplicit false
 
@@ -228,6 +228,24 @@ theorem idFunctor_obj_eq_twice {C : Type u} [Category.{u, v} C]
     F.obj (F.obj X) = X := by
   cases hF
   rfl
+
+/-- If a functor `H` equals a composition `F ⋙ G`, then `H.obj X`
+unfolds to `G.obj (F.obj X)`.  Used for the `act_mul`-driven
+type alignments in the orbit-groupoid `assoc` proof. -/
+theorem compFunctor_obj_eq {C : Type u} [Category.{u, v} C]
+    {F G H : C ⥤ C} (hH : H = F ⋙ G) (X : C) :
+    H.obj X = G.obj (F.obj X) := by
+  cases hH
+  rfl
+
+/-- HEq version of `compFunctor_obj_eq` lifted to `Functor.map`:
+if `H = F ⋙ G`, then `H.map f` is HEq to `G.map (F.map f)`. -/
+theorem compFunctor_map_heq {C : Type u} [Category.{u, v} C]
+    {F G H : C ⥤ C} (hH : H = F ⋙ G)
+    {X Y : C} (f : Hom X Y) :
+    HEq (H.map f) (G.map (F.map f)) := by
+  cases hH
+  exact HEq.refl _
 
 /-! ## Smoke tests
 

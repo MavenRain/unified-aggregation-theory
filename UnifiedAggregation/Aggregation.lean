@@ -57,10 +57,14 @@ theorem OrbitHom.ext {Obj : Type u} [Category.{u, u} Obj]
     p.g = q.g → HEq p.f q.f → p = q
   | ⟨_, _⟩, ⟨_, _⟩, rfl, HEq.refl _ => rfl
 
-/-- The orbit groupoid carries a category structure.  `Hom`, `id`, and
-`comp` are wired to the `OrbitHom` machinery; the three associativity-
-and-unit laws are sorried (each is a multi-step rewrite through the
-cast machinery and is tracked as Phase 1a follow-up). -/
+/-- The orbit groupoid carries a category structure.  `Hom`, `id`,
+and `comp` are wired to the `OrbitHom` machinery; the three
+associativity-and-unit laws are closed by the
+`UnifiedAggregation.HeqTransport` tactic stack (outer-cast peeling
+via `heq_strip`, HEq congruence via `heq_comp` and
+`heq_functor_map`, `idFunctor`/`compFunctor` decomposition via
+the `act_one`/`act_mul` collapse helpers, all bridged through
+underlying `Category` and `Functor` laws as Eq → HEq lifts). -/
 instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
     {G : SymmetryGroup.{w}} {act : GAction G Obj} :
     Category.{u, max u w} (OrbitGroupoid act) where
@@ -69,13 +73,11 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
   comp p q :=
     { g := G.mul p.g q.g
       f := (act.act_mul p.g q.g).symm ▸ (p.f ≫ (act.act p.g).map q.f) }
-  -- The g-field of each law closes by direct application of the
-  -- corresponding SymmetryGroup law (mul_one, one_mul, mul_assoc).
-  -- The HEq on the f-field follows the same template as the
-  -- `orbitProjection.map_comp` closure below (heq_strip + heq_comp
-  -- + idFunctor collapse) but with additional `Functor.map_id` /
-  -- `Category.comp_id` / `Category.id_comp` reductions inside the
-  -- composition.  Sorried pending the next round.
+  -- g-field: direct application of the corresponding SymmetryGroup
+  -- law (mul_one, one_mul, mul_assoc).
+  -- f-field: the heq_strip + heq_comp template, bridged through
+  -- the underlying Category and Functor laws (comp_id, id_comp,
+  -- assoc, map_id, map_comp).
   comp_id := fun {_ Y} p => by
     apply OrbitHom.ext
     · exact G.mul_one p.g
@@ -111,19 +113,54 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
           (motive := fun F _ => Hom X.val (F.obj X.val))
           act.act_one.symm (𝟙 X.val))
         (idFunctor_map_heq act.act_one p.f)
-  assoc := fun p q r => by
+  assoc := fun {W X Y Z} p q r => by
     apply OrbitHom.ext
     · exact G.mul_assoc p.g q.g r.g
-    · -- After `dsimp only [] ; heq_strip`, the residual is the
-      -- pentagon: `(cast ▸ (p.f ≫ map q.f)) ≫ (act (p.g · q.g)).map r.f`
-      -- on the left versus
-      -- `p.f ≫ (act p.g).map (cast ▸ (q.f ≫ (act q.g).map r.f))`
-      -- on the right.  Closing this needs the full chain
-      -- (`Functor.map_comp` + `act_mul`-as-functor-composition +
-      -- `Category.assoc`) on top of `heq_strip` and the
-      -- `heq_comp` / `heq_functor_map` congruence.  Sorried for
-      -- the next round.
-      sorry
+    · dsimp only []
+      heq_strip
+      -- Goal: HEq ((cast₁ ▸ (p.f ≫ map q.f)) ≫ map_pq r.f)
+      --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
+      -- where cast₁ = (act_mul p.g q.g).symm,
+      --       cast₂ = (act_mul q.g r.g).symm,
+      --       map_pq = (act.act (G.mul p.g q.g)).map.
+      --
+      -- Bridge through the canonical form
+      --   p.f ≫ ((act p.g).map q.f ≫ (act p.g).map ((act q.g).map r.f))
+      -- via Category.assoc on the LHS and Functor.map_comp on the RHS.
+      refine HEq.trans
+        (heq_comp
+          (compFunctor_obj_eq (act.act_mul p.g q.g) Y.val)
+          (compFunctor_obj_eq (act.act_mul p.g q.g) ((act.act r.g).obj Z.val))
+          (eqRec_heq_dep
+            (motive := fun F _ => Hom W.val (F.obj Y.val))
+            (act.act_mul p.g q.g).symm
+            (p.f ≫ (act.act p.g).map q.f))
+          (compFunctor_map_heq (act.act_mul p.g q.g) r.f))
+        ?_
+      -- Goal: HEq ((p.f ≫ map q.f) ≫ (act p.g).map ((act q.g).map r.f))
+      --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
+      refine HEq.trans
+        (heq_of_eq (Category.assoc p.f
+          ((act.act p.g).map q.f)
+          ((act.act p.g).map ((act.act q.g).map r.f)))) ?_
+      -- Goal: HEq (p.f ≫ ((act p.g).map q.f ≫ (act p.g).map ((act q.g).map r.f)))
+      --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
+      refine HEq.trans
+        (heq_of_eq (congrArg (p.f ≫ ·)
+          ((act.act p.g).map_comp q.f ((act.act q.g).map r.f)).symm)) ?_
+      -- Goal: HEq (p.f ≫ (act p.g).map (q.f ≫ (act q.g).map r.f))
+      --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
+      refine heq_comp rfl ?_ HEq.rfl ?_
+      · -- hZ
+        exact congrArg (act.act p.g).obj
+          (compFunctor_obj_eq (act.act_mul q.g r.g) Z.val).symm
+      · -- hg : HEq (map X) (map (cast ▸ X))
+        exact (heq_functor_map rfl rfl
+          (compFunctor_obj_eq (act.act_mul q.g r.g) Z.val)
+          (eqRec_heq_dep
+            (motive := fun F _ => Hom X.val (F.obj Z.val))
+            (act.act_mul q.g r.g).symm
+            (q.f ≫ (act.act q.g).map r.f))).symm
 
 /-- The orbit projection `p : C ⥤ C // G`.  Sends each C-object to its
 wrapped form in `OrbitGroupoid` and each C-morphism `f : X → Y` to the

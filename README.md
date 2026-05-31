@@ -52,21 +52,26 @@ Schelling-Ising.
   classical case analysis on existential structure of `Aggregation`
   prove the headline `trichotomy` theorem.
 
-Open sorries are reduced to the orbit-groupoid associator
-(`assoc` of `orbitGroupoidCategory` in `Aggregation.lean`):
-`comp_id`, `id_comp`, and `orbitProjection.map_comp` are now
-closed end-to-end via the in-house `heq_strip` + `heq_comp` /
-`heq_functor_map` + `idFunctor`-collapse stack in
-`UnifiedAggregation.HeqTransport`, bridged through
-`Category.comp_id` / `id_comp` and `Functor.map_id` as Eq → HEq
-lifts via `heq_of_eq`.  The `assoc` residual is the pentagon
-identity, which additionally needs `Functor.map_comp` and
-`act_mul`-as-functor-composition; slated for the next round.
-The analytic content of the mean-field bifurcation theorem
-(`unique_fixed_point_paramagnetic` and `bifurcation_ferromagnetic`
-in `Bridge/SchellingIsing.lean`) is slated for real-analysis
-lemmas via Mathlib.  The trichotomy proof, all three regime
-witnesses, and the symbolic Z₂ degeneracy theorem are sorry-free.
+**All four orbit-groupoid cast-tower HEqs in `Aggregation.lean`
+are now closed** (`orbitProjection.map_comp`, `comp_id`, `id_comp`,
+`assoc`), end-to-end through the in-house tactic stack in
+`UnifiedAggregation.HeqTransport`: `heq_strip` for outer-cast
+peeling, `heq_comp` / `heq_functor_map` for HEq congruence under
+`≫` and `Functor.map`, the `idFunctor`-collapse family
+(`idFunctor_map_heq`, `idFunctor_obj_eq[_twice]`) for `act_one`
+substitutions, and the `compFunctor` family
+(`compFunctor_obj_eq`, `compFunctor_map_heq`) for
+`act_mul`-driven functor-composition reductions, all bridged
+through underlying `Category.comp_id` / `id_comp` / `assoc` and
+`Functor.map_id` / `map_comp` Eq → HEq lifts via `heq_of_eq`.
+
+The only remaining sorries are the analytic content of the
+mean-field bifurcation theorem (`unique_fixed_point_paramagnetic`
+and `bifurcation_ferromagnetic` in `Bridge/SchellingIsing.lean`),
+slated for real-analysis lemmas via Mathlib.  The trichotomy
+proof, all three regime witnesses, the symbolic Z₂ degeneracy
+theorem, and the full orbit-groupoid category structure are
+sorry-free.
 
 ## Headline theorems
 
@@ -165,15 +170,10 @@ In `UnifiedAggregation.Trichotomy`:
   of symmetric pair for `β > 1`, via IVT).
 - **Phase 2 (analytic)**: Arrow-Debreu existence via Kakutani fixed
   point.  Mathlib pulled, infrastructure ready.
-- **Phase 1a follow-ups**: 3 of 4 cast-tower HEq sorries closed
-  (`orbitProjection.map_comp`, `comp_id`, `id_comp`) using
-  `UnifiedAggregation.HeqTransport` (`heq_strip` for outer-cast
-  peeling, `heq_comp` + `heq_functor_map` for HEq congruence,
-  `idFunctor`-collapse lemmas plus `heq_of_eq` bridges through
-  `Category.comp_id` / `id_comp` and `Functor.map_id`).
-  Remaining: the `assoc` law of `orbitGroupoidCategory`, the
-  pentagon residual, which additionally needs `Functor.map_comp`
-  and `act_mul`-as-functor-composition.
+- **Phase 1a follow-ups**: **Complete.**  All 4 cast-tower HEq
+  sorries closed (`orbitProjection.map_comp`, `comp_id`, `id_comp`,
+  `assoc` of `orbitGroupoidCategory`) via the full
+  `UnifiedAggregation.HeqTransport` stack.
 
 ## Architecture
 
@@ -190,9 +190,13 @@ UnifiedAggregation/
                                and its component uncasts) for outer-layer
                                casts in `▸` notation, including the
                                dependent-motive form Lean produces under
-                               `Functor.obj`; plus HEq congruence lemmas
-                               for `≫` / `Functor.map` and `idFunctor`-
-                               collapse helpers
+                               `Functor.obj`; HEq congruence lemmas for
+                               `≫` and `Functor.map`; `idFunctor`-
+                               collapse helpers (`idFunctor_map_heq`,
+                               `idFunctor_obj_eq[_twice]`); and
+                               `compFunctor` decomposition helpers
+                               (`compFunctor_obj_eq`,
+                               `compFunctor_map_heq`)
   Aggregation.lean             OrbitHom + OrbitGroupoid + orbitProjection
                                + Aggregation = LeftKanExtension along orbit proj
   Regimes.lean                 IsArrowDebreuRegime, IsArrowImpossibilityRegime,
