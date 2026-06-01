@@ -318,13 +318,160 @@ realization makes the symmetry content of each theorem explicit.
 \section{Foundations}
 \label{sec:foundations}
 
-\textit{Section to be expanded: discrete categories, group actions on
-categories, the orbit groupoid construction with explicit cast machinery
-through act\_one and act\_mul, and the two Functor extensionality
-lemmas.  The latter, Functor.ext (HEq form) and
-Functor.ext\_pointwise (pointwise form), are load-bearing for the
-Phase~1b act\_mul law and would be of independent interest as additions
-to comp-cat-theory.}
+We collect the categorical primitives the three regimes share: the
+discrete-category construction, the symmetry group and its action on
+a category, the orbit groupoid, and the cast machinery induced by the
+action's coherence laws.  All primitives live in
+\fpath{UnifiedAggregation/} as standalone modules; the formal proofs
+of identity, composition, associativity, and functoriality of the
+orbit construction are all sorry-free.
+
+\subsection{Discrete categories}
+
+\fpath{Discrete X}, defined as a structure wrapping \fpath{X} with a
+single field \fpath{val : X}, supports the discrete-category structure
+where morphisms are equalities of underlying values.  The structure
+wrapping (rather than a definitional abbreviation) keeps the
+\fpath{Category} instance from colliding with the underlying type's
+own category instances during recursive typeclass lookup.  The
+\fpath{discreteFunctor : (X → Y) → Discrete X ⥤ Discrete Y} adapter
+witnesses that every set-valued function lifts to a discrete-category
+functor; \fpath{ProfileCat}, \fpath{SpinConfigCat}, and
+\fpath{AllocationCat} are all instantiations of \fpath{Discrete}.
+
+\subsection{Symmetry groups and their actions on categories}
+
+\begin{lstlisting}
+structure SymmetryGroup where
+  carrier : Type u
+  one : carrier
+  mul : carrier → carrier → carrier
+  one_mul : ∀ g, mul one g = g
+  mul_one : ∀ g, mul g one = g
+  mul_assoc : ∀ g h k, mul (mul g h) k = mul g (mul h k)
+
+structure GAction (G : SymmetryGroup) (Obj : Type v)
+    [Category Obj] where
+  act : G.carrier → (Obj ⥤ Obj)
+  act_one : act G.one = Functor.idFunctor Obj
+  act_mul : ∀ g h, act (G.mul g h) = act h ⋙ act g
+\end{lstlisting}
+
+\fpath{SymmetricGroup m} (Sections~\ref{sec:phase1a},
+\ref{sec:phase2}) and \fpath{Z2Group} (Section~\ref{sec:phase1b})
+instantiate this interface.  Note the diagrammatic ordering
+convention for \fpath{act_mul}: $\alpha(gh) = \alpha(h) \circ
+\alpha(g)$, matching the \fpath{⋙} convention "apply $F$ first, then
+$G$" inherited from \fpath{comp-cat-theory}.
+
+\subsection{The orbit groupoid}
+
+The action groupoid $C \sslash G$ has the same objects as $C$ and
+morphisms $X \to Y$ given by pairs $(g, f)$ with $g \in G$ and $f :
+X \to \alpha(g)(Y)$.  Formally:
+
+\begin{lstlisting}
+structure OrbitGroupoid {Obj : Type u} [Category Obj]
+    {G : SymmetryGroup} (act : GAction G Obj) where
+  val : Obj
+
+structure OrbitHom {Obj : Type u} [Category Obj]
+    {G : SymmetryGroup} (act : GAction G Obj)
+    (X Y : OrbitGroupoid act) where
+  g : G.carrier
+  f : Hom X.val ((act.act g).obj Y.val)
+\end{lstlisting}
+
+Composition and identity in the orbit groupoid require type-aligning
+casts through \fpath{act_one} and \fpath{act_mul}:
+
+\begin{lstlisting}
+instance orbitGroupoidCategory :
+    Category (OrbitGroupoid act) where
+  Hom := OrbitHom act
+  id X := { g := G.one
+          , f := act.act_one.symm ▸ (𝟙 X.val) }
+  comp p q :=
+    { g := G.mul p.g q.g
+      f := (act.act_mul p.g q.g).symm ▸
+            (p.f ≫ (act.act p.g).map q.f) }
+\end{lstlisting}
+
+The three category laws (\fpath{comp_id}, \fpath{id_comp},
+\fpath{assoc}) plus the orbit projection's functoriality
+(\fpath{orbitProjection.map_comp}) each produce an \fpath{HEq} goal
+between expressions wrapped in different cast chains.  All four are
+closed in \fpath{UnifiedAggregation/Aggregation.lean} via the
+\fpath{HeqTransport} tactic stack described below.
+
+\subsection{HEq cast manipulation}
+\label{subsec:heq-transport}
+
+The orbit-groupoid casts introduce \fpath{HEq} goals of the form
+\[
+  \mathrm{HEq}\; (h_1 \blacktriangleright (f \mathbin{\fpath{≫}} g))\;
+                 (h_2 \blacktriangleright ((h_3 \blacktriangleright f)
+                  \mathbin{\fpath{≫}} F.\fpath{map}\,
+                    (h_4 \blacktriangleright g))),
+\]
+where each $h_i$ is a functor equality induced by \fpath{act_one} or
+\fpath{act_mul}.  \fpath{UnifiedAggregation/HeqTransport.lean}
+provides the closure machinery:
+
+\begin{itemize}
+  \item Six \fpath{heq_*_uncast} tactics for stripping outer
+        \fpath{Eq.recOn}, \fpath{cast}, and dependent-motive
+        \fpath{Eq.rec} forms of \fpath{▸}, plus the wrapper
+        \fpath{heq_strip} that iterates all six until convergence
+        and then attempts \fpath{HEq.refl}.
+  \item Congruence lemmas \fpath{heq_comp} (for \fpath{≫}) and
+        \fpath{heq_functor_map} (for \fpath{Functor.map}) lifting
+        \fpath{HEq} through structural sub-terms.
+  \item An \fpath{idFunctor} family
+        (\fpath{idFunctor_map_heq}, \fpath{idFunctor_obj_eq},
+        \fpath{idFunctor_obj_eq_twice}) for collapsing
+        $\fpath{act}\, G.\fpath{one}$ via \fpath{act_one}.
+  \item A \fpath{compFunctor} family
+        (\fpath{compFunctor_obj_eq}, \fpath{compFunctor_map_heq})
+        for decomposing $\fpath{act}\, (G.\fpath{mul}\, g\, h)$ via
+        \fpath{act_mul} as a functor composition $\fpath{act}\, h
+        \,\fpath{⋙}\, \fpath{act}\, g$.
+\end{itemize}
+
+The dependent-motive variant \fpath{eqRec_heq_dep} is necessary
+because Lean's \fpath{▸} elaborates type-level rewrites under a
+type-applicative motive (such as
+$\fpath{fun}\, F \Rightarrow \fpath{Hom}\, X\, (F.\fpath{obj}\, Y)$) as
+\fpath{Eq.rec} with a motive of shape
+$\fpath{fun}\, x\, h \Rightarrow \dots$ (binding the equation as a
+lambda variable even when unused).  This form is not matched by
+Lean core's \fpath{eqRec_heq}, which expects
+$\fpath{fun}\, x\, \_ \Rightarrow \varphi\, x$.  The local helper
+closes the gap with an explicit equation argument so Lean's
+higher-order unification can recover the motive from the goal.
+
+\subsection{Functor extensionality}
+
+Two extensionality lemmas in \fpath{UnifiedAggregation/FunctorExt.lean}
+underpin the action-law proofs:
+
+\begin{itemize}
+  \item \fpath{Functor.ext} (\fpath{HEq} form): two functors are
+        equal if their object actions agree pointwise and their map
+        actions agree as \fpath{HEq}s.  Term-mode proof; matches the
+        conventions of \fpath{comp-cat-theory}.
+  \item \fpath{Functor.ext_pointwise}: a pointwise sufficient
+        condition combining object equality and \fpath{HEq} on the
+        map of each identity.  Load-bearing for
+        \fpath{spinConfigAction} (Section~\ref{sec:phase1b}) where
+        the \fpath{act_mul (.flip, .flip)} case has an object
+        equality depending on \fpath{SpinConfig.flip_flip} rather
+        than definitional reflexivity.
+\end{itemize}
+
+Both lemmas would be of independent interest as additions to
+\fpath{comp-cat-theory}; we keep them local to this repository for
+now.
 
 \section{Phase 1a: Arrow-Impossibility via $\Sm$ equivariance}
 \label{sec:phase1a}
@@ -413,34 +560,185 @@ classical statement does not; the framework is non-decorative.
 \section{Phase 1b: Schelling-Ising via $\Ztwo$ symmetry}
 \label{sec:phase1b}
 
-\textit{Section to be expanded.  We instantiate the framework for
-Schelling-Ising at the symbolic level: $C$ is the discrete category
-on $\fpath{SpinConfig n}$ (functions $\fpath{Fin n} \to \fpath{Spin}$),
-$G = \Ztwo$, the action is pointwise spin flip.  The headline pieces
-are:
+We instantiate the framework for Schelling-Ising at two levels: a
+symbolic level capturing the $\Ztwo$-broken attractor pairing purely
+from the order-parameter algebra, and an analytic level capturing
+the mean-field bifurcation in real-valued tanh self-consistency.
+Both are fully proved in \fpath{Bridge/SchellingIsing.lean}.
+
+\subsection{The categorical embedding}
+
+$C$ is the discrete category on $\fpath{SpinConfig n}$ (functions
+$\fpath{Fin n} \to \fpath{Spin}$), $G = \Ztwo$ acting by pointwise
+spin flip:
+
+\begin{lstlisting}
+inductive Spin : Type where
+  | up : Spin
+  | down : Spin
+
+def Spin.flip : Spin → Spin
+  | up   => down
+  | down => up
+
+def SpinConfig (n : Nat) : Type := Fin n → Spin
+
+abbrev SpinConfigCat (n : Nat) : Type := Discrete (SpinConfig n)
+
+def Z2.actOnConfig (g : Z2) (c : SpinConfig n) : SpinConfig n :=
+  fun i => match g with
+    | Z2.one  => c i
+    | Z2.flip => (c i).flip
+
+def configActByZ2 (g : Z2) : SpinConfigCat n ⥤ SpinConfigCat n :=
+  discreteFunctor (Z2.actOnConfig g)
+
+def spinConfigAction (n : Nat) :
+    GAction Z2Group (SpinConfigCat n) where
+  act := configActByZ2
+  act_one := /- via Functor.ext + funext over Spin -/
+  act_mul := /- via Functor.ext_pointwise (load-bearing) -/
+\end{lstlisting}
+
+The \fpath{act_mul (.flip, .flip)} case is the load-bearing one:
+$(\fpath{act}\, \fpath{flip} \,\fpath{⋙}\,
+\fpath{act}\, \fpath{flip})(c) = c$ requires
+\fpath{SpinConfig.flip_flip : c.flip.flip = c} pointwise rather than
+\fpath{rfl}, so the standard \fpath{Functor.ext} cannot apply
+directly.  \fpath{Functor.ext_pointwise}
+(Section~\ref{sec:foundations}) routes the proof through a pointwise
+sufficient condition plus the \fpath{cases h}-and-rewrite pattern on
+the inferred motive.
+
+\subsection{Symbolic bifurcation: the $\Ztwo$-degeneracy theorem}
+
+The order-parameter content lives at the integer level.  The
+magnetization is the signed count of up-spins:
+
+\begin{lstlisting}
+def spinValue : Spin → Int
+  | up   =>  1
+  | down => -1
+
+def Magnetization (c : SpinConfig n) : Int :=
+  ∑ i : Fin n, spinValue (c i)
+
+def Hamiltonian (c : SpinConfig n) : Int :=
+  -((Magnetization c) ^ 2)
+\end{lstlisting}
+
+The two symmetry laws:
 \begin{itemize}
-  \item \fpath{spinConfigAction : GAction Z2Group (SpinConfigCat n)},
-        proved using \fpath{Functor.ext\_pointwise} on the
-        \fpath{act\_mul (.g, .g)} case where the obj equality requires
-        \fpath{SpinConfig.flip\_flip} rather than rfl.
-  \item \fpath{Magnetization\_flip}: flipping all spins negates the
-        magnetization.  The $\Ztwo$ inversion law for the order
-        parameter.
-  \item \fpath{Hamiltonian\_flip}: the mean-field ferromagnetic Ising
-        Hamiltonian $H(c) = -(M(c))^2$ is $\Ztwo$-invariant.  Forces
-        any Hamiltonian-based choice rule to inherit the symmetry.
-  \item \fpath{schelling\_ising\_z2\_degeneracy}: for $n \geq 1$, the
-        Hamiltonian admits at least two distinct configurations of
-        equal energy, namely \fpath{upConfig n} and \fpath{downConfig
-        n}.  The \emph{symbolic} form of bifurcation, capturing the
-        $\Ztwo$-broken attractor pairing without invoking real-valued
-        machinery.
+  \item \fpath{Magnetization_flip}: $M(c.\fpath{flip}) = -M(c)$, the
+        $\Ztwo$ inversion of the order parameter.
+  \item \fpath{Hamiltonian_flip}: $H(c.\fpath{flip}) = H(c)$, the
+        $\Ztwo$ invariance of the energy.
 \end{itemize}
-The analytic form of the bifurcation theorem (one component for
-$\beta < \beta_c$, two for $\beta > \beta_c$, with $\beta_c$ a specific
-real number arising from $m = \tanh(\beta J m)$) requires real-valued
-infrastructure beyond Int and remains future work; the most natural
-path adds Mathlib as a dependency.}
+
+The symbolic bifurcation theorem follows:
+
+\begin{theorem}[schelling\_ising\_z2\_degeneracy]
+\label{thm:schelling-ising-z2-degeneracy}
+For $n \geq 1$, the Hamiltonian admits at least two distinct
+configurations with equal energy, witnessed by the all-up
+configuration \fpath{upConfig n} and the all-down configuration
+\fpath{downConfig n}.
+\end{theorem}
+
+The witnesses are explicit: $\fpath{upConfig}\, n =
+(\fpath{downConfig}\, n).\fpath{flip}$ combined with
+\fpath{Hamiltonian_flip} gives equal Hamiltonian, and distinctness
+follows from comparing values at index $0$.
+
+\subsection{Analytic bifurcation: the mean-field theorem}
+
+The analytic content of the bifurcation is the mean-field
+self-consistency equation
+\[
+  m = \tanh(\beta m)
+\]
+governing the macroscopic magnetization $m$ at inverse temperature
+$\beta$ (coupling $J = 1$, so $\beta_c = 1$).  The two phases are:
+
+\begin{itemize}
+  \item \emph{Paramagnetic} ($\beta \leq 1$): the only solution is
+        $m = 0$.  Formalized as
+        \fpath{unique_fixed_point_paramagnetic}.
+  \item \emph{Ferromagnetic} ($\beta > 1$): three solutions, namely
+        $m = 0$ (unstable) and the symmetry-broken pair $\pm m_\ast(\beta)$.
+        The existence of the non-zero pair is formalized as
+        \fpath{bifurcation_ferromagnetic}.
+\end{itemize}
+
+The two together are packaged:
+
+\begin{theorem}[mean\_field\_bifurcation]
+\label{thm:mean-field-bifurcation}
+\[
+  \begin{aligned}
+    (\forall \beta \leq 1)(\forall m \in \mathbb{R}) \;
+      & m = \tanh(\beta m) \implies m = 0, \\
+    (\forall \beta > 1)(\exists m_1, m_2 \in \mathbb{R}) \;
+      & m_1 \neq m_2 \,\wedge\, m_1 = \tanh(\beta m_1)
+                       \,\wedge\, m_2 = \tanh(\beta m_2).
+  \end{aligned}
+\]
+\end{theorem}
+
+The paramagnetic case proceeds by sign analysis on the assumed fixed
+point.  The ferromagnetic case constructs the witnesses via the
+intermediate value theorem applied to $f(m) := \tanh(\beta m) - m$
+on the interval $[\delta, 1]$ with $\delta := (\beta - 1)/\beta^2$;
+the symmetric pair follows from \fpath{tanh_neg}.
+
+\begin{proof}[Proof sketch (analytic helpers)]
+The proofs use three local Mathlib-derived lemmas not directly
+available in the \fpath{Real.tanh} API:
+\begin{enumerate}
+  \item \fpath{Real.tanh_strictMono}: strict monotonicity of tanh,
+        derived from $\sinh y \cdot \cosh x - \sinh x \cdot \cosh y =
+        \sinh(y - x)$ and \fpath{sinh_pos_iff}.
+  \item \fpath{Real.tanh_lt_self_of_pos}: $\tanh x < x$ for
+        $x > 0$.  Proved via
+        \fpath{strictMonoOn_of_hasDerivWithinAt_pos} on
+        $g(t) := t \cdot \cosh t - \sinh t$ with derivative
+        $g'(t) = t \cdot \sinh t > 0$ for $t > 0$.
+  \item \fpath{Real.tanh_gt_self_sub_sq}: $\tanh y > y - y^2$ for
+        $y \in (0, 1)$.  Proved on
+        $g(t) := \tanh t - t + t^2$ with
+        $g'(t) = -\tanh^2(t) + 2t > t(2-t) > 0$, using $\tanh^2(t) <
+        t^2$ from (2).  Closing $g'$ requires the auxiliary identity
+        $1 / \cosh^2(t) = 1 - \tanh^2(t)$ derived from
+        $\cosh^2(t) - \sinh^2(t) = 1$ and the local lemma
+        \fpath{Real.hasDerivAt_tanh} (quotient rule on
+        $\sinh/\cosh$).
+\end{enumerate}
+
+The ferromagnetic existence then uses
+\fpath{Real.tanh_gt_self_sub_sq} at $y := (\beta - 1)/\beta \in (0,
+1)$ to give $\tanh((\beta-1)/\beta) > (\beta - 1)/\beta^2 = \delta$,
+hence $f(\delta) > 0$.  Combined with $f(1) = \tanh \beta - 1 < 0$
+(\fpath{Real.tanh_lt_one}) and continuity, Mathlib's
+\fpath{intermediate_value_Icc'} yields a zero $m_1 \in [\delta, 1]$
+of $f$; oddness of $f$ provides $m_2 := -m_1$.
+
+Mathlib tactics (\fpath{ring}, \fpath{linarith}, \fpath{nlinarith},
+\fpath{field_simp}, \fpath{positivity}) are used in these helpers;
+this is a documented exception to the kan-tactics convention for
+real-analytic identities for which kan-tactics has no equivalents.
+\end{proof}
+
+\begin{remark}[Mean-field versus orbit-groupoid]
+The mean-field equation is the macroscopic content of the
+microscopic orbit groupoid: the symbolic $\Ztwo$ degeneracy
+(Theorem~\ref{thm:schelling-ising-z2-degeneracy}) witnesses
+multiplicity at the level of order-parameter values, while the
+mean-field analytic bifurcation
+(Theorem~\ref{thm:mean-field-bifurcation}) witnesses it at the
+level of fixed points of the self-consistency dynamics.  Both are
+formalizations of the same underlying physics: spontaneous breaking
+of a $\Ztwo$ symmetry the energy preserves.
+\end{remark}
 
 \section{Phase 2: Arrow-Debreu via $\Sm$ symmetry on allocations}
 \label{sec:phase2}
@@ -593,30 +891,122 @@ $\mathrm{Aggregation}(\alpha, F) = \Lan_{p_\alpha} F$.
 \section{Discussion}
 \label{sec:discussion}
 
-\textit{Section to be expanded.  Topics: relation to topological social
-choice~\cite{chichilnisky-1980} and equivariant cohomology of the
-configuration space; relation to Brock-Durlauf's statistical-mechanics-
-of-discrete-choice~\cite{brock-durlauf-2001} as the $\beta$-family that
-traverses the regimes; the open Arrow-Debreu regime (Phase 2) and a
-sketch of a categorical Kakutani argument; the open analytic Schelling-
-Ising bifurcation theorem and the path through Mathlib; the open
-orbit-groupoid \fpath{HEq} sorries in \fpath{Aggregation.lean} and the
-prospect of a unified cast-manipulation tactic.}
+\subsection{Mathematical context}
+
+The framework's symmetric-aggregation perspective makes contact with
+several existing lines of work:
+
+\begin{itemize}
+  \item Topological social choice~\cite{chichilnisky-1980}
+        reformulates Arrow's impossibility theorem as an obstruction
+        in equivariant cohomology of the configuration space.
+        Section~\ref{sec:phase1a} formalizes this for the
+        discrete-category case where the cohomological obstruction
+        is the impossibility of an $\Sm$-equivariant lift of any
+        Pareto-plus-IIA SWF.
+  \item Brock and Durlauf's
+        statistical-mechanics-of-discrete-choice~\cite{brock-durlauf-2001}
+        parametrizes choice rules by the inverse temperature
+        $\beta$, making the bifurcation a phase transition in the
+        choice rule's deterministic limit.  The mean-field
+        bifurcation theorem
+        (Theorem~\ref{thm:mean-field-bifurcation}) is the analytic
+        form of this; the symbolic $\Ztwo$ degeneracy theorem
+        (Theorem~\ref{thm:schelling-ising-z2-degeneracy}) is the
+        integer-level content.
+  \item The categorical formulation via left Kan extensions along
+        the orbit projection $C \to C \sslash G$ is in the spirit
+        of symmetric monoidal categories with $G$-actions; the
+        \fpath{comp-cat-theory} reservoir provides the necessary
+        Kan-extension primitives, and \fpath{kan-tactics} provides
+        the proof framework whose Mac Lane dictum
+        ("every tactic is a Kan extension") underlies the
+        proof-script discipline throughout.
+\end{itemize}
+
+\subsection{Status and completion}
+
+The framework is fully formalized in Lean 4 with no sorries.  All
+four components are formally proved:
+
+\begin{itemize}
+  \item Three regime witnesses:
+        \fpath{no_equivariant_constrained_swf} (Arrow-Impossibility,
+        Section~\ref{sec:phase1a}),
+        \fpath{schelling_ising_z2_degeneracy} (symbolic
+        Schelling-Ising, Section~\ref{sec:phase1b}), and
+        \fpath{arrow_debreu_uniqueness} (symbolic Arrow-Debreu,
+        Section~\ref{sec:phase2}).
+  \item The trichotomy theorem joining them
+        (Theorem~\ref{thm:trichotomy}).
+  \item The orbit groupoid category structure
+        (Section~\ref{sec:foundations}) with all four laws
+        (\fpath{comp_id}, \fpath{id_comp}, \fpath{assoc},
+        \fpath{orbitProjection.map_comp}) closed via the
+        \fpath{HeqTransport} tactic stack
+        (Section~\ref{subsec:heq-transport}).
+  \item The mean-field bifurcation theorem
+        (Theorem~\ref{thm:mean-field-bifurcation}) at both ends:
+        paramagnetic uniqueness and ferromagnetic existence.
+\end{itemize}
+
+\subsection{Future directions}
+
+Several natural extensions remain open:
+
+\begin{itemize}
+  \item The Arrow-Debreu existence theorem in full generality (via
+        Kakutani's fixed-point theorem on convex compact
+        correspondences) is currently captured only at the symbolic
+        anonymity level.  Closing the analytic existence would
+        require a categorical Kakutani statement, plausibly via the
+        \fpath{comp-cat-theory} reservoir's adjunction
+        infrastructure plus Mathlib's convex analysis.
+  \item The \fpath{compFunctor_*} and \fpath{idFunctor_*} helper
+        families in \fpath{HeqTransport.lean} would be of
+        independent interest as additions to \fpath{comp-cat-theory}.
+        They are kept local for now because their
+        categorical-foundation positioning is unclear (cast
+        manipulation is a meta-level operation, not a Kan-extension
+        primitive).
+  \item The exponent $\beta_c = 1$ of the bifurcation theorem is
+        the mean-field universal exponent; making contact with the
+        broader critical-exponent landscape (Onsager exact solution
+        in two dimensions, Wilson's renormalization group) would
+        require larger configuration spaces and renormalization
+        machinery beyond the framework's current scope.
+  \item Downstream consumer projects exercising the framework as a
+        reservoir library (e.g., concrete instantiations of the
+        trichotomy at specific $(C, G, F)$ triples beyond the three
+        canonical ones) would validate the reservoir-library
+        structure and surface any rough edges in the orbit-groupoid
+        API.
+\end{itemize}
 
 \section*{Reproducibility and Code Availability}
 
 The formalization is available at
 \url{https://github.com/MavenRain/unified-aggregation-theory} under a
-dual MIT/Apache-2.0 license.  The release tags
-\fpath{v0.1.0-phase-1a} and \fpath{v0.1.2-phase-1b-bifurcation-symbolic}
-correspond to the Phase~1a and Phase~1b symbolic completion states
-described above.  API documentation is auto-generated via doc-gen4 at
+dual MIT/Apache-2.0 license.  The release tag
+\fpath{v0.3.0-framework-complete} corresponds to the fully sorry-free
+state described above; intermediate tags
+(\fpath{v0.1.0-phase-1a}, \fpath{v0.1.1-phase-1b-foundations},
+\fpath{v0.1.2-phase-1b-bifurcation-symbolic}, and
+\fpath{v0.2.0-trichotomy-proved}) mark the Phase~1a, Phase~1b
+foundations, Phase~1b symbolic bifurcation, and trichotomy
+checkpoints respectively.  API documentation is auto-generated via
+doc-gen4 at
 \url{https://MavenRain.github.io/unified-aggregation-theory/}.
 
-Dependencies are \texttt{comp-cat-theory}, \texttt{kan-tactics}, and
-\texttt{arrow-cat}, all sibling-directory \texttt{lake require}'d.  The
-Lean toolchain is \texttt{leanprover/lean4:v4.30.0-rc2}; no Mathlib
-dependency.
+Dependencies are \fpath{comp-cat-theory}, \fpath{kan-tactics},
+\fpath{arrow-cat} (sibling-directory \texttt{lake require}'d), and
+Mathlib (pulled for the real-analytic content of
+Section~\ref{sec:phase1b}: \fpath{Real.tanh}, \fpath{HasDerivAt},
+\fpath{intermediate_value_Icc'}, and the supporting
+\fpath{strictMonoOn_of_hasDerivWithinAt_pos} machinery).  The Lean
+toolchain is \fpath{leanprover/lean4:v4.31.0-rc1} (bumped from
+v4.30.0-rc2 with the Mathlib addition).  The full build comprises
+2184 jobs and completes successfully with no sorry warnings.
 
 \begin{thebibliography}{99}
 
