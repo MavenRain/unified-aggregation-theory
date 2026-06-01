@@ -479,23 +479,174 @@ theorem unique_fixed_point_paramagnetic (β : ℝ) (hβ : β ≤ 1) :
     have h_lt : Real.tanh m < m := Real.tanh_lt_self_of_pos h_m_pos
     linarith
 
+/-- `Real.tanh` has derivative `1 / cosh²` at every real point.
+Derived from `hasDerivAt_sinh` and `hasDerivAt_cosh` via the
+quotient rule plus `cosh² - sinh² = 1`. -/
+theorem Real.hasDerivAt_tanh (x : ℝ) :
+    HasDerivAt Real.tanh (1 / Real.cosh x ^ 2) x := by
+  have h := (Real.hasDerivAt_sinh x).div (Real.hasDerivAt_cosh x)
+    (Real.cosh_pos x).ne'
+  have h_fn : (Real.sinh / Real.cosh : ℝ → ℝ) = Real.tanh := by
+    funext y
+    exact (Real.tanh_eq_sinh_div_cosh y).symm
+  rw [h_fn] at h
+  have h_eq :
+      (Real.cosh x * Real.cosh x - Real.sinh x * Real.sinh x) / Real.cosh x ^ 2
+        = 1 / Real.cosh x ^ 2 := by
+    have h_id := Real.cosh_sq_sub_sinh_sq x
+    have : Real.cosh x * Real.cosh x - Real.sinh x * Real.sinh x = 1 := by
+      have := h_id
+      nlinarith [sq (Real.cosh x), sq (Real.sinh x)]
+    rw [this]
+  rw [h_eq] at h
+  exact h
+
+/-- For `y ∈ (0, 1)`, `Real.tanh y > y - y²`.  This is the auxiliary
+inequality used in `bifurcation_ferromagnetic` to establish strict
+positivity of `f(m) := tanh(β·m) - m` at the lower IVT endpoint
+`m = (β-1)/β²` (where `β·m = (β-1)/β ∈ (0, 1)`).
+
+Proof: define `g(t) := tanh t - t + t²`.  `g(0) = 0`,
+`g'(t) = sech²(t) - 1 + 2t = -tanh²(t) + 2t`.  For `t ∈ (0, 1)`,
+`tanh(t) < t` (via `Real.tanh_lt_self_of_pos`) so `tanh²(t) < t²`,
+hence `g'(t) > 2t - t² = t(2 - t) > 0`.  By
+`strictMonoOn_of_hasDerivWithinAt_pos`, `g` is strictly increasing
+on `[0, 1]`, so `g(y) > g(0) = 0` for `y ∈ (0, 1]`. -/
+theorem Real.tanh_gt_self_sub_sq {y : ℝ}
+    (hy_pos : 0 < y) (hy_lt : y < 1) :
+    y - y^2 < Real.tanh y := by
+  -- Define g(t) := tanh t - t + t² and show strictMonoOn on [0, 1].
+  have h_mono : StrictMonoOn (fun t : ℝ => Real.tanh t - t + t^2)
+                              (Set.Icc 0 1) := by
+    -- Derivative of g.
+    have h_deriv : ∀ t,
+        HasDerivAt (fun s : ℝ => Real.tanh s - s + s^2)
+          (1 / Real.cosh t ^ 2 - 1 + 2 * t) t := by
+      intro t
+      have h_tanh := Real.hasDerivAt_tanh t
+      have h_id : HasDerivAt (fun s : ℝ => s) 1 t := hasDerivAt_id t
+      have h_sq : HasDerivAt (fun s : ℝ => s^2) (2 * t) t := by
+        have := hasDerivAt_pow 2 t
+        simp at this
+        exact this
+      exact (h_tanh.sub h_id).add h_sq
+    refine strictMonoOn_of_hasDerivWithinAt_pos
+      (f' := fun t => 1 / Real.cosh t ^ 2 - 1 + 2 * t)
+      (convex_Icc 0 1) ?_ ?_ ?_
+    · -- Continuity on [0, 1].
+      intro t _
+      exact ((h_deriv t).continuousAt).continuousWithinAt
+    · -- Has derivative within the interior.
+      intro t _
+      exact (h_deriv t).hasDerivWithinAt
+    · -- Derivative positive on the interior.
+      intro t ht
+      simp only [interior_Icc, Set.mem_Ioo] at ht
+      obtain ⟨ht_pos, ht_lt⟩ := ht
+      -- 1/cosh²(t) - 1 = -tanh²(t) ≥ -t²
+      have h_tanh_lt : Real.tanh t < t := Real.tanh_lt_self_of_pos ht_pos
+      have h_tanh_pos : 0 < Real.tanh t := by
+        rw [Real.tanh_eq_sinh_div_cosh]
+        exact div_pos (Real.sinh_pos_iff.mpr ht_pos) (Real.cosh_pos t)
+      have h_tanh_sq : Real.tanh t ^ 2 < t ^ 2 := by
+        have := mul_self_lt_mul_self h_tanh_pos.le h_tanh_lt
+        rw [← sq, ← sq] at this
+        exact this
+      -- Key identity: 1/cosh²(t) = 1 - tanh²(t)
+      have h_one_minus_tanh_sq : 1 / Real.cosh t ^ 2 = 1 - Real.tanh t ^ 2 := by
+        rw [Real.tanh_eq_sinh_div_cosh, div_pow]
+        field_simp
+        linarith [Real.cosh_sq_sub_sinh_sq t]
+      rw [h_one_minus_tanh_sq]
+      nlinarith [h_tanh_sq]
+  have h_zero : (fun t : ℝ => Real.tanh t - t + t^2) 0 = 0 := by
+    simp [Real.tanh_zero]
+  have h_0_in : (0 : ℝ) ∈ Set.Icc (0:ℝ) 1 := ⟨le_refl _, zero_le_one⟩
+  have h_y_in : y ∈ Set.Icc (0:ℝ) 1 := ⟨hy_pos.le, hy_lt.le⟩
+  have h_gt := h_mono h_0_in h_y_in hy_pos
+  rw [h_zero] at h_gt
+  linarith
+
+/-- `Real.tanh` is continuous (as a quotient of continuous functions). -/
+theorem Real.continuous_tanh : Continuous Real.tanh := by
+  have h : Real.tanh = fun x => Real.sinh x / Real.cosh x := by
+    funext x; exact Real.tanh_eq_sinh_div_cosh x
+  rw [h]
+  exact Real.continuous_sinh.div Real.continuous_cosh
+    (fun x => (Real.cosh_pos x).ne')
+
 /-- For `β > 1` (ferromagnetic phase), there exist two distinct
 non-zero mean-field fixed points (the `Z₂`-symmetric attractor pair
 `±m_*(β)`).
 
-Proof strategy (deferred, requires more Mathlib API plumbing):
-Define `f(m) := tanh(β·m) - m`.  By the auxiliary inequality
-`tanh y > y - y²` for `y ∈ (0, 1)` (provable via `strictMonoOn` on
-`g(t) := tanh(t) - t + t²` using `Real.tanh_lt_self_of_pos` to
-bound `tanh²(t) < t²` and hence the derivative
-`g'(t) = -tanh²(t) + 2t > t(2 - t) > 0`), applied to
-`y := (β-1)/β ∈ (0,1)`, we get `f(δ) > 0` for `δ := (β-1)/β²`.
-Combined with `f(1) = tanh β - 1 < 0` (`Real.tanh_lt_one`) and
-continuity, IVT yields a zero `m₁ ∈ (δ, 1)`.  By odd symmetry
+Proof: define `f(m) := tanh(β·m) - m` and `δ := (β-1)/β²`.  By
+`Real.tanh_gt_self_sub_sq` at `y := (β-1)/β ∈ (0, 1)`, we get
+`tanh((β-1)/β) > (β-1)/β² = δ`, hence `f(δ) > 0`.  Combined with
+`f(1) = tanh β - 1 < 0` (`Real.tanh_lt_one`) and continuity, IVT
+yields `m₁ ∈ [δ, 1]` with `f(m₁) = 0`.  By odd symmetry
 (`Real.tanh_neg`), `-m₁` is also a fixed point. -/
-theorem bifurcation_ferromagnetic (β : ℝ) (_hβ : 1 < β) :
+theorem bifurcation_ferromagnetic (β : ℝ) (hβ : 1 < β) :
     ∃ m₁ m₂ : ℝ, m₁ ≠ m₂ ∧ m₁ ≠ 0 ∧ m₂ ≠ 0 ∧
-      IsMeanFieldFixedPoint β m₁ ∧ IsMeanFieldFixedPoint β m₂ := by sorry
+      IsMeanFieldFixedPoint β m₁ ∧ IsMeanFieldFixedPoint β m₂ := by
+  have hβ_pos : 0 < β := by linarith
+  have hβ_sq_pos : 0 < β^2 := by positivity
+  set δ : ℝ := (β - 1) / β^2 with hδ_def
+  have hδ_pos : 0 < δ := div_pos (by linarith) hβ_sq_pos
+  have hδ_lt_one : δ < 1 := by
+    rw [hδ_def, div_lt_one hβ_sq_pos]
+    nlinarith
+  -- Lower-end positivity: tanh(β·δ) > δ.
+  have h_lower : δ < Real.tanh (β * δ) := by
+    have h_βδ : β * δ = (β - 1) / β := by
+      rw [hδ_def]; field_simp
+    rw [h_βδ]
+    have h_y_pos : 0 < (β - 1) / β := div_pos (by linarith) hβ_pos
+    have h_y_lt : (β - 1) / β < 1 := by
+      rw [div_lt_one hβ_pos]; linarith
+    have h_ineq := Real.tanh_gt_self_sub_sq h_y_pos h_y_lt
+    have h_eq_δ : (β - 1) / β - ((β - 1) / β)^2 = δ := by
+      rw [hδ_def]; field_simp; ring
+    linarith [h_eq_δ.symm.trans_lt h_ineq]
+  -- Continuity of the difference f(m) = tanh(β·m) - m.
+  have h_f_cont : Continuous (fun m : ℝ => Real.tanh (β * m) - m) :=
+    (Real.continuous_tanh.comp (continuous_const.mul continuous_id)).sub continuous_id
+  -- IVT on [δ, 1] for f: f(δ) > 0, f(1) < 0, so f has a zero.
+  have h_f_δ_pos : 0 < Real.tanh (β * δ) - δ := by linarith
+  have h_f_one_neg : Real.tanh (β * 1) - 1 < 0 := by
+    rw [mul_one]; linarith [Real.tanh_lt_one β]
+  have h_δ_le : δ ≤ 1 := hδ_lt_one.le
+  have h_in_range :
+      (0 : ℝ) ∈ Set.Icc ((fun m => Real.tanh (β * m) - m) 1)
+                        ((fun m => Real.tanh (β * m) - m) δ) := by
+    refine ⟨?_, ?_⟩
+    · show Real.tanh (β * 1) - 1 ≤ 0
+      linarith [Real.tanh_lt_one β, show β * 1 = β from mul_one β]
+    · show 0 ≤ Real.tanh (β * δ) - δ
+      linarith
+  obtain ⟨m₁, hm₁_mem, hm₁_eq⟩ :=
+    intermediate_value_Icc' h_δ_le h_f_cont.continuousOn h_in_range
+  -- m₁ ∈ [δ, 1] with f(m₁) = 0, i.e., tanh(β·m₁) = m₁.
+  have hm₁_fp : IsMeanFieldFixedPoint β m₁ := by
+    unfold IsMeanFieldFixedPoint
+    have : Real.tanh (β * m₁) - m₁ = 0 := hm₁_eq
+    linarith
+  have hm₁_pos : 0 < m₁ := lt_of_lt_of_le hδ_pos hm₁_mem.1
+  -- By odd symmetry, -m₁ is also a fixed point.
+  have hm₂_fp : IsMeanFieldFixedPoint β (-m₁) := by
+    unfold IsMeanFieldFixedPoint at hm₁_fp ⊢
+    have h_t : Real.tanh (β * -m₁) = -Real.tanh (β * m₁) := by
+      rw [mul_neg, Real.tanh_neg]
+    rw [h_t, ← hm₁_fp]
+  refine ⟨m₁, -m₁, ?_, ?_, ?_, hm₁_fp, hm₂_fp⟩
+  · -- m₁ ≠ -m₁
+    intro h
+    nlinarith [hm₁_pos, h]
+  · -- m₁ ≠ 0
+    exact hm₁_pos.ne'
+  · -- -m₁ ≠ 0
+    intro h
+    have : m₁ = 0 := by linarith
+    exact hm₁_pos.ne' this
 
 /-- **The mean-field bifurcation theorem**.  The number of solutions
 of the self-consistency equation `m = tanh(β · m)` bifurcates at

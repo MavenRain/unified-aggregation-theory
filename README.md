@@ -65,17 +65,27 @@ substitutions, and the `compFunctor` family
 through underlying `Category.comp_id` / `id_comp` / `assoc` and
 `Functor.map_id` / `map_comp` Eq → HEq lifts via `heq_of_eq`.
 
-The paramagnetic side of the mean-field bifurcation theorem is
-now also closed: `unique_fixed_point_paramagnetic` follows from
-two local Mathlib-derived helpers, `Real.tanh_strictMono` and
-`Real.tanh_lt_self_of_pos` (the second built via
-`strictMonoOn_of_hasDerivWithinAt_pos` on
-`g(t) = t·cosh t - sinh t`).  The single remaining sorry is
-`bifurcation_ferromagnetic` (the β > 1 existence of a
-symmetry-broken pair), slated for an IVT-based proof on
-`tanh(β·) - id`.  The trichotomy proof, all three regime
-witnesses, the symbolic Z₂ degeneracy theorem, and the full
-orbit-groupoid category structure are sorry-free.
+**The entire framework is now sorry-free.**  Both sides of the
+mean-field bifurcation theorem are formally proved:
+
+- `unique_fixed_point_paramagnetic` (β ≤ 1 ⟹ m = 0 unique) follows
+  from `Real.tanh_strictMono` (via the `sinh y · cosh x - sinh x ·
+  cosh y = sinh(y − x)` identity) and `Real.tanh_lt_self_of_pos`
+  (via `strictMonoOn_of_hasDerivWithinAt_pos` on
+  `g(t) = t·cosh t − sinh t`).
+- `bifurcation_ferromagnetic` (β > 1 ⟹ symmetry-broken pair
+  exists) follows from `Real.hasDerivAt_tanh` (via the quotient
+  rule on `sinh/cosh` plus `cosh² − sinh² = 1`),
+  `Real.tanh_gt_self_sub_sq` (via `strictMonoOn` on
+  `g(t) = tanh t − t + t²` with `g'(t) = 2t − tanh²(t) > t(2 − t)
+  > 0` using `tanh²(t) < t²`), and `intermediate_value_Icc'`
+  applied to `f(m) = tanh(β·m) − m` on `[δ, 1]` with
+  `δ := (β−1)/β²`.  The symmetric fixed point follows from
+  `Real.tanh_neg`.
+
+The trichotomy proof, all three regime witnesses, the symbolic Z₂
+degeneracy theorem, the full orbit-groupoid category structure,
+and the analytic bifurcation are all sorry-free.
 
 ## Headline theorems
 
