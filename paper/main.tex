@@ -46,7 +46,22 @@
   framerule=0.4pt,
   rulecolor=\color{gray!50},
   xleftmargin=0pt,
-  xrightmargin=0pt
+  xrightmargin=0pt,
+  extendedchars=true,
+  inputencoding=utf8,
+  literate=
+    {∀}{{$\forall$}}1 {∃}{{$\exists$}}1
+    {→}{{$\to$}}1 {↦}{{$\mapsto$}}1
+    {⥤}{{$\Rightarrow$}}1 {⋙}{{$\,;\,$}}1
+    {≫}{{$\,\rangle\,$}}1 {𝟙}{{$\mathbf{1}$}}1
+    {▸}{{$\triangleright$}}1 {≍}{{$\simeq$}}1
+    {≤}{{$\leq$}}1 {≥}{{$\geq$}}1 {≠}{{$\neq$}}1
+    {∈}{{$\in$}}1 {⟨}{{$\langle$}}1 {⟩}{{$\rangle$}}1
+    {∘}{{$\circ$}}1 {∑}{{$\sum$}}1 {∧}{{$\wedge$}}1
+    {α}{{$\alpha$}}1 {β}{{$\beta$}}1 {γ}{{$\gamma$}}1
+    {δ}{{$\delta$}}1 {σ}{{$\sigma$}}1 {τ}{{$\tau$}}1
+    {ℝ}{{$\mathbb{R}$}}1 {ℕ}{{$\mathbb{N}$}}1
+    {ℤ}{{$\mathbb{Z}$}}1
 }
 
 \newcommand{\Lan}{\mathrm{Lan}}
@@ -55,7 +70,8 @@
 \newcommand{\id}{\mathrm{id}}
 \newcommand{\Sm}{S_{m}}
 \newcommand{\Ztwo}{\mathbb{Z}_{2}}
-\newcommand{\fpath}[1]{\texttt{#1}}
+\newcommand{\fpath}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\sslash}{\mathbin{/\!\!/}}
 
 \title{Arrow-Debreu, Arrow's Impossibility, and Schelling-Ising\\
        as Regimes of a Single Categorical Construction:\\
@@ -162,7 +178,7 @@ First, we lay out the categorical scaffolding (\fpath{ConfigSpace},
 (\fpath{Discrete} categories, \fpath{SymmetricGroup} and \fpath{Z2Group}
 as instances of \fpath{SymmetryGroup}, two flavors of
 \fpath{Functor} extensionality including a load-bearing
-\fpath{Functor.ext\_pointwise} lemma that handles obj-equality-up-to-
+\fpath{Functor.ext_pointwise} lemma that handles obj-equality-up-to-
 pointwise-rewrite cases).  All of this is built on
 \texttt{comp-cat-theory}~\cite{compcat-theory}, with no Mathlib
 dependency.
@@ -170,12 +186,12 @@ dependency.
 Second, we wire Arrow's Impossibility Theorem into the framework via the
 $\Sm$ action on \fpath{Profile m \(\alpha\)} (Section~\ref{sec:phase1a}).
 The headline theorem
-\fpath{no\_equivariant\_constrained\_swf} states that no social welfare
+\fpath{no_equivariant_constrained_swf} states that no social welfare
 function over $m \geq 2$ voters and three or more alternatives can
 simultaneously be $\Sm$-equivariant and satisfy Pareto plus IIA.  Its
-proof chain (\fpath{equivariant\_dictator\_transfer},
-\fpath{all\_voters\_dictator\_under\_equivariance},
-\fpath{no\_two\_dictators}) makes the framework's
+proof chain (\fpath{equivariant_dictator_transfer},
+\fpath{all_voters_dictator_under_equivariance},
+\fpath{no_two_dictators}) makes the framework's
 \fpath{GAction} structure non-decorative: the anonymity that the
 categorical $\Sm$-action encodes is the very obstruction.  arrow-cat's
 classical statement~\cite{arrow-cat} permits a dictator solution; the
@@ -184,11 +200,11 @@ framework's anonymity requirement rules that out.
 Third, we realize the Schelling-Ising regime via the $\Ztwo$ action on
 spin configurations (Section~\ref{sec:phase1b}).  At the categorical
 level, \fpath{spinConfigAction : GAction Z2Group (SpinConfigCat n)} is
-fully proved using \fpath{Functor.ext\_pointwise}.  At the
+fully proved using \fpath{Functor.ext_pointwise}.  At the
 phase-transition level, we define magnetization and the mean-field
 ferromagnetic Hamiltonian (integer-valued, $J = 1$), prove their $\Ztwo$
 inversion and invariance laws, and then prove a \emph{symbolic} form of
-the bifurcation theorem: \fpath{schelling\_ising\_z2\_degeneracy}
+the bifurcation theorem: \fpath{schelling_ising_z2_degeneracy}
 witnesses that for $n \geq 1$ the Hamiltonian admits at least two
 distinct configurations of equal energy.  This is the structural content
 of bifurcation (distinct attractors of the $\Ztwo$-equivariant
@@ -198,7 +214,7 @@ real-number machinery.
 Fourth, we realize the Arrow-Debreu regime symbolically
 (Section~\ref{sec:phase2}) via the $\Sm$ action on integer-valued
 allocations.  The headline
-\fpath{arrow\_debreu\_uniqueness} states that any two anonymous
+\fpath{arrow_debreu_uniqueness} states that any two anonymous
 (equivariant) allocations agreeing at one consumer are equal
 everywhere, capturing the structural form of "unique equilibrium under
 convex symmetric preferences" without invoking real-valued machinery.
@@ -209,7 +225,7 @@ Fifth, we prove the \emph{trichotomy theorem} itself
 (Section~\ref{sec:trichotomy}): every aggregation problem
 $(\alpha, F)$ inhabits exactly one of the three regimes.  Proof: a
 classical case analysis on the existential structure of the left Kan
-extension, split by a helper lemma \fpath{aggregation\_dichotomy} that
+extension, split by a helper lemma \fpath{aggregation_dichotomy} that
 handles the existence-plus-non-uniqueness branch via
 \texttt{Classical.byContradiction}.  Together with the three load-bearing
 witnesses above, this establishes that the three classical aggregation
@@ -501,10 +517,10 @@ def profileAction (m : Nat) (α : Type u) :
   act_mul := /- same recipe -/
 \end{lstlisting}
 
-The \fpath{act\_one} and \fpath{act\_mul} laws close via the
+The \fpath{act_one} and \fpath{act_mul} laws close via the
 \fpath{Functor.ext} recipe, exploiting structure-eta on the \fpath{Discrete}
 wrapper plus definitional proof irrelevance on the
-\fpath{map\_id} and \fpath{map\_comp} fields.
+\fpath{map_id} and \fpath{map_comp} fields.
 
 \subsection{The headline theorem}
 
@@ -524,19 +540,19 @@ $\Sm$-equivariant and satisfies Pareto plus IIA.
 The proof chain uses three intermediate lemmas, all proved in the
 formalization:
 \begin{enumerate}
-  \item \fpath{equivariant\_dictator\_transfer}: under an
+  \item \fpath{equivariant_dictator_transfer}: under an
         $\Sm$-equivariant SWF, the dictator role transfers between any
         two voters connected by a permutation.  This is the
         load-bearing lemma: without equivariance the dictator from
         Arrow's theorem~\cite{arrow-cat} stays fixed; with equivariance
         it propagates.
-  \item \fpath{all\_voters\_dictator\_under\_equivariance}: combining
+  \item \fpath{all_voters_dictator_under_equivariance}: combining
         Arrow's theorem with the transfer lemma plus transitivity of
         $\Sm$ on $\mathrm{Fin}\, m$, every voter is a dictator under
         equivariance.  Transitivity is witnessed inline by
         \texttt{ArrowCat.swapMap} (a swap permutation lifted to
         $\fpath{Perm m}$ as an involutive bijection).
-  \item \fpath{no\_two\_dictators}: two distinct voters cannot both be
+  \item \fpath{no_two_dictators}: two distinct voters cannot both be
         dictators.  Proof builds a disagreement profile using
         \texttt{ArrowCat.StrictPref.moveBToBottom}: voter $k_1$ has $b$
         moved to the bottom (so $a > b$), voter $k_2$ has $a$ moved to
@@ -785,7 +801,7 @@ that agree at consumer 0 are equal everywhere.
 
 \begin{proof}[Proof sketch]
 The proof factors through a sharper intermediate lemma:
-\fpath{Allocation.anonymous\_eq\_at\_zero} states that any anonymous
+\fpath{Allocation.anonymous_eq_at_zero} states that any anonymous
 allocation gives every consumer the same quantity as consumer 0.  The
 proof is by construction: for any consumer index $i \neq 0$, the swap
 permutation $\sigma = (0\, i)$ (built using arrow-cat's
@@ -858,7 +874,7 @@ $\mathrm{Aggregation}(\alpha, F)$ is inhabited.
   \item If no $L$ exists (uninhabited), then by definition we are in
         the Arrow-Impossibility regime.
   \item If at least one $L$ exists, a helper lemma
-        $\fpath{aggregation\_dichotomy}$ splits on whether every other
+        $\fpath{aggregation_dichotomy}$ splits on whether every other
         $L'$ agrees with $L$ on objects.  If so, we are in
         Arrow-Debreu.  If not, the negation
         $\neg \forall L'\, \forall Y,\, L.\mathrm{obj}\,Y =
@@ -880,9 +896,9 @@ agreeing aggregations is similarly classified.
 Theorem~\ref{thm:trichotomy} is what makes the framework's
 ``unification of three theorems" claim formal rather than rhetorical.
 Combined with the three load-bearing witnesses
-(\fpath{no\_equivariant\_constrained\_swf},
-\fpath{schelling\_ising\_z2\_degeneracy},
-\fpath{arrow\_debreu\_uniqueness}), it establishes that the three
+(\fpath{no_equivariant_constrained_swf},
+\fpath{schelling_ising_z2_degeneracy},
+\fpath{arrow_debreu_uniqueness}), it establishes that the three
 classical aggregation results are not independent theorems but
 regimes of a single categorical construction:
 $\mathrm{Aggregation}(\alpha, F) = \Lan_{p_\alpha} F$.
