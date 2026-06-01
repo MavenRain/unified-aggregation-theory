@@ -480,13 +480,19 @@ theorem unique_fixed_point_paramagnetic (β : ℝ) (hβ : β ≤ 1) :
     linarith
 
 /-- For `β > 1` (ferromagnetic phase), there exist two distinct
-non-zero mean-field fixed points (the `Z₂`-symmetric attractor pair).
+non-zero mean-field fixed points (the `Z₂`-symmetric attractor pair
+`±m_*(β)`).
 
-Proof sketch (deferred): consider `g(m) = tanh(β · m)`.  At `m = 0`,
-`g'(0) = β > 1`, so `g` crosses the diagonal `y = m` with slope `> 1`
-near zero.  Since `g` is bounded by `±1` and odd, `g(m) - m` changes
-sign in `(0, 1)` and in `(-1, 0)` by the intermediate value theorem,
-yielding two symmetric non-zero solutions. -/
+Proof strategy (deferred, requires more Mathlib API plumbing):
+Define `f(m) := tanh(β·m) - m`.  By the auxiliary inequality
+`tanh y > y - y²` for `y ∈ (0, 1)` (provable via `strictMonoOn` on
+`g(t) := tanh(t) - t + t²` using `Real.tanh_lt_self_of_pos` to
+bound `tanh²(t) < t²` and hence the derivative
+`g'(t) = -tanh²(t) + 2t > t(2 - t) > 0`), applied to
+`y := (β-1)/β ∈ (0,1)`, we get `f(δ) > 0` for `δ := (β-1)/β²`.
+Combined with `f(1) = tanh β - 1 < 0` (`Real.tanh_lt_one`) and
+continuity, IVT yields a zero `m₁ ∈ (δ, 1)`.  By odd symmetry
+(`Real.tanh_neg`), `-m₁` is also a fixed point. -/
 theorem bifurcation_ferromagnetic (β : ℝ) (_hβ : 1 < β) :
     ∃ m₁ m₂ : ℝ, m₁ ≠ m₂ ∧ m₁ ≠ 0 ∧ m₂ ≠ 0 ∧
       IsMeanFieldFixedPoint β m₁ ∧ IsMeanFieldFixedPoint β m₂ := by sorry
