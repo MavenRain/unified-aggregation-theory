@@ -182,8 +182,8 @@ configuration space; the obstruction regime above is the categorical
 shadow of that topological obstruction.
 
 \paragraph{Contribution.}
-We present a Lean~4 formalization of this unification.  The contribution
-is fourfold.
+We present a Lean~4 formalization of this unification.  The
+contribution has six strands, presented in turn below.
 
 First, we lay out the categorical scaffolding (\fpath{ConfigSpace},
 \fpath{ChoiceRule}, \fpath{Aggregation}, \fpath{Regimes},
@@ -195,12 +195,13 @@ of \fpath{Functor} extensionality including a load-bearing
 obj-equality-up-to-pointwise-rewrite cases, and the
 \fpath{HeqTransport} tactic stack closing the four cast-tower
 \fpath{HEq} obligations the orbit groupoid produces).  All of this
-is built on \fpath{comp-cat-theory}~\cite{compcat-theory}; Mathlib
-is pulled for the analytic content of Phase~1b (real-valued
-mean-field bifurcation).
+is built on \fpath{comp-cat-theory}~\cite{compcat-theory} plus the
+\fpath{kan-tactics}~\cite{kan-tactics} proof framework; Mathlib
+\cite{mathlib} is pulled for the analytic content of Phase~1b
+(real-valued mean-field bifurcation).
 
 Second, we wire Arrow's Impossibility Theorem into the framework via the
-$\Sm$ action on \fpath{Profile m \(\alpha\)} (Section~\ref{sec:phase1a}).
+$\Sm$ action on \fpath{Profile m}~$\alpha$ (Section~\ref{sec:phase1a}).
 The headline theorem
 \fpath{no_equivariant_constrained_swf} states that no social welfare
 function over $m \geq 2$ voters and three or more alternatives can
@@ -243,19 +244,20 @@ allocations.  The headline
 (equivariant) allocations agreeing at one consumer are equal
 everywhere, capturing the structural form of "unique equilibrium under
 convex symmetric preferences" without invoking real-valued machinery.
-The proof reuses arrow-cat's \texttt{swapMap} for the transposition
-permutation construction.
+The proof reuses \fpath{arrow-cat}'s \fpath{swapMap} for the
+transposition permutation construction.
 
 Fifth, we prove the \emph{trichotomy theorem} itself
 (Section~\ref{sec:trichotomy}): every aggregation problem
-$(\alpha, F)$ inhabits exactly one of the three regimes.  Proof: a
-classical case analysis on the existential structure of the left Kan
-extension, split by a helper lemma \fpath{aggregation_dichotomy} that
-handles the existence-plus-non-uniqueness branch via
-\texttt{Classical.byContradiction}.  Together with the three load-bearing
-witnesses above, this establishes that the three classical aggregation
-results are not independent theorems but regimes of a single
-construction.
+$(\alpha, F)$ inhabits at least one of the three regimes.  Proof: a
+classical case analysis on the existential structure of the left
+Kan extension, split by a helper lemma
+\fpath{aggregation_dichotomy} that handles the
+existence-plus-non-uniqueness branch via
+\fpath{Classical.byContradiction}.  Together with the three
+load-bearing witnesses above, this establishes that the three
+classical aggregation results are not independent theorems but
+regimes of a single construction.
 
 Sixth, we identify what remains.  The Lean source is sorry-free as
 of \fpath{v0.3.0-framework-complete}: the analytic Schelling-Ising
@@ -269,17 +271,19 @@ at the symbolic anonymity level; closing it would require a
 categorical Kakutani statement and Mathlib's convex analysis.
 
 \paragraph{Outline.}
-Section~\ref{sec:object} states the central categorical object and the
-three regimes.  Section~\ref{sec:foundations} sketches the foundational
-infrastructure (discrete categories, group actions, the two Functor
-extensionality lemmas).  Section~\ref{sec:phase1a} presents the
-Arrow-Impossibility wiring.  Section~\ref{sec:phase1b} presents the
-Schelling-Ising wiring and the symbolic bifurcation theorem.
-Section~\ref{sec:phase2} presents the Arrow-Debreu wiring and the
-symbolic uniqueness theorem.  Section~\ref{sec:trichotomy} states and
-proves the trichotomy theorem itself.  Section~\ref{sec:discussion}
-discusses related work, the framework's load-bearing properties, and
-the path to closing out the remaining analytic results and sorries.
+Section~\ref{sec:object} states the central categorical object and
+the three regimes.  Section~\ref{sec:foundations} sketches the
+foundational infrastructure (discrete categories, group actions, the
+two Functor extensionality lemmas, the \fpath{HeqTransport} tactic
+stack).  Section~\ref{sec:phase1a} presents the Arrow-Impossibility
+wiring.  Section~\ref{sec:phase1b} presents the Schelling-Ising
+wiring with both the symbolic ($\Ztwo$-degeneracy) and the analytic
+(mean-field) bifurcation theorems.  Section~\ref{sec:phase2}
+presents the Arrow-Debreu wiring and the symbolic uniqueness
+theorem.  Section~\ref{sec:trichotomy} states and proves the
+trichotomy theorem itself.  Section~\ref{sec:discussion} discusses
+related work, framework completeness, and the open analytic
+Arrow-Debreu direction.
 
 \section{The Central Object and the Three Regimes}
 \label{sec:object}
@@ -341,9 +345,10 @@ $\Lan_{p_\alpha} F$ is realized.
         transitions are bifurcations in the homotopy type of the
         selector space as a parameter (e.g.\ Brock-Durlauf's inverse
         temperature $\beta$) varies.  Section~\ref{sec:phase1b}
-        formalizes the symbolic form of this for $C =$ discrete
-        category of spin configurations, $G = \Ztwo$, $D =$ outcome
-        space; the analytic form remains future work.
+        formalizes both forms of this for $C =$ discrete category
+        of spin configurations, $G = \Ztwo$, $D =$ outcome space:
+        the symbolic $\Ztwo$-degeneracy theorem and the analytic
+        mean-field bifurcation theorem.
 \end{description}
 
 \begin{remark}[Symmetry as the unifying thread]
@@ -377,7 +382,8 @@ where morphisms are equalities of underlying values.  The structure
 wrapping (rather than a definitional abbreviation) keeps the
 \fpath{Category} instance from colliding with the underlying type's
 own category instances during recursive typeclass lookup.  The
-\fpath{discreteFunctor : (X → Y) → Discrete X ⥤ Discrete Y} adapter
+\fpath{discreteFunctor} adapter, of type
+$(X \to Y) \to (\fpath{Discrete}\, X \to \fpath{Discrete}\, Y)$,
 witnesses that every set-valued function lifts to a discrete-category
 functor; \fpath{ProfileCat}, \fpath{SpinConfigCat}, and
 \fpath{AllocationCat} are all instantiations of \fpath{Discrete}.
@@ -523,7 +529,7 @@ now.
 \label{sec:phase1a}
 
 We instantiate the framework for Arrow's setting: $C$ is the discrete
-category on \fpath{Profile m \(\alpha\)} (functions $\mathrm{Fin}\, m
+category on \fpath{Profile m}~$\alpha$ (functions $\mathrm{Fin}\, m
 \to \mathrm{StrictPref}\, \alpha$), $G = \Sm$ (the symmetric group on
 $m$ voter indices), $D$ is the discrete category on
 $\mathrm{StrictPref}\, \alpha$.  The $\Sm$ action on profiles is the
@@ -555,14 +561,16 @@ wrapper plus definitional proof irrelevance on the
 \subsection{The headline theorem}
 
 The framework treats a social welfare function as a choice rule
-\fpath{SWFasChoiceRule f : ProfileCat m \(\alpha\) ⥤ Discrete
-(StrictPref \(\alpha\))} (a \fpath{discreteFunctor} applied to the
-underlying \fpath{f : SWF m \(\alpha\)}).  The headline theorem is:
+\fpath{SWFasChoiceRule f}, a functor
+$\fpath{ProfileCat}\, m\, \alpha \to \fpath{Discrete}\,
+(\fpath{StrictPref}\, \alpha)$ obtained by applying
+\fpath{discreteFunctor} to the underlying
+$f : \fpath{SWF}\, m\, \alpha$.  The headline theorem is:
 
 \begin{theorem}[no\_equivariant\_constrained\_swf]
 \label{thm:no-equivariant-constrained-swf}
 For $m \geq 2$ voters, a nonempty profile space, and three or more
-alternatives, no SWF $f : \fpath{SWF m \(\alpha\)}$ is simultaneously
+alternatives, no SWF $f : \fpath{SWF}\, m\, \alpha$ is simultaneously
 $\Sm$-equivariant and satisfies Pareto plus IIA.
 \end{theorem}
 
@@ -580,11 +588,11 @@ formalization:
         Arrow's theorem with the transfer lemma plus transitivity of
         $\Sm$ on $\mathrm{Fin}\, m$, every voter is a dictator under
         equivariance.  Transitivity is witnessed inline by
-        \texttt{ArrowCat.swapMap} (a swap permutation lifted to
-        $\fpath{Perm m}$ as an involutive bijection).
+        \fpath{ArrowCat.swapMap} (a swap permutation lifted to
+        \fpath{Perm m} as an involutive bijection).
   \item \fpath{no_two_dictators}: two distinct voters cannot both be
         dictators.  Proof builds a disagreement profile using
-        \texttt{ArrowCat.StrictPref.moveBToBottom}: voter $k_1$ has $b$
+        \fpath{ArrowCat.StrictPref.moveBToBottom}: voter $k_1$ has $b$
         moved to the bottom (so $a > b$), voter $k_2$ has $a$ moved to
         the bottom (so $b > a$).  Both dictators then force
         $(f p).\mathrm{pref}\, a\, b$ and $(f p).\mathrm{pref}\, b\, a$,
@@ -596,8 +604,8 @@ voters, and the combination of (2) and (3) closes the impossibility.
 
 \begin{remark}[Framework load-bearing]
 Theorem~\ref{thm:no-equivariant-constrained-swf} is stronger than the
-classical Arrow statement: arrow-cat's \fpath{arrow} permits a dictator
-solution to Pareto plus IIA, but the framework's
+classical Arrow statement: \fpath{arrow-cat}'s \fpath{arrow}
+permits a dictator solution to Pareto plus IIA, but the framework's
 $\Sm$-equivariance requirement turns the dictator into a contradiction
 for $m \geq 2$.  The categorical $\Sm$ action does work that the
 classical statement does not; the framework is non-decorative.
@@ -614,8 +622,8 @@ Both are fully proved in \fpath{Bridge/SchellingIsing.lean}.
 
 \subsection{The categorical embedding}
 
-$C$ is the discrete category on $\fpath{SpinConfig n}$ (functions
-$\fpath{Fin n} \to \fpath{Spin}$), $G = \Ztwo$ acting by pointwise
+$C$ is the discrete category on \fpath{SpinConfig n} (functions
+\fpath{Fin n}$\to$\fpath{Spin}), $G = \Ztwo$ acting by pointwise
 spin flip:
 
 \begin{lstlisting}
@@ -791,8 +799,9 @@ of a $\Ztwo$ symmetry the energy preserves.
 
 We instantiate the framework for Arrow-Debreu at the symbolic level
 without invoking real-valued machinery.  $C$ is the discrete category
-on $\fpath{Allocation m} = \fpath{Fin m} \to \mathbb{N}$ (consumer
-indices mapping to integer endowments), $G = \Sm$, the action permutes
+on \fpath{Allocation m} (a type abbreviation for
+$\fpath{Fin}\, m \to \mathbb{N}$: consumer indices mapping to
+integer endowments), $G = \Sm$, the action permutes
 consumer labels via $(\sigma \cdot a)(i) = a(\sigma(i))$.
 
 \subsection{The categorical embedding}
@@ -816,8 +825,8 @@ def allocationAction (m : Nat) :
   act_mul := /- same recipe -/
 \end{lstlisting}
 
-The $\fpath{allocationAction}$ uses exactly the same
-$\fpath{Functor.ext}$ recipe as $\fpath{profileAction}$ from
+The \fpath{allocationAction} uses exactly the same
+\fpath{Functor.ext} recipe as \fpath{profileAction} from
 Section~\ref{sec:phase1a}; the categorical scaffolding is reused
 intact.
 
@@ -833,10 +842,11 @@ that agree at consumer 0 are equal everywhere.
 The proof factors through a sharper intermediate lemma:
 \fpath{Allocation.anonymous_eq_at_zero} states that any anonymous
 allocation gives every consumer the same quantity as consumer 0.  The
-proof is by construction: for any consumer index $i \neq 0$, the swap
-permutation $\sigma = (0\, i)$ (built using arrow-cat's
-\texttt{StrictPref.swapMap} and lifted to $\fpath{Perm m}$ via the
-involution lemma) sends consumer 0 to consumer $i$.  Applying the
+proof is by construction: for any consumer index $i \neq 0$, the
+swap permutation $\sigma = (0\, i)$ (built using
+\fpath{arrow-cat}'s \fpath{StrictPref.swapMap} and lifted to
+\fpath{Perm m} via the involution lemma) sends consumer 0 to
+consumer $i$.  Applying the
 anonymity hypothesis at index 0 gives $a(\sigma(0)) = a(0)$, that is,
 $a(i) = a(0)$.  The headline theorem then follows from a pointwise
 chain.
@@ -904,13 +914,13 @@ $\mathrm{Aggregation}(\alpha, F)$ is inhabited.
   \item If no $L$ exists (uninhabited), then by definition we are in
         the Arrow-Impossibility regime.
   \item If at least one $L$ exists, a helper lemma
-        $\fpath{aggregation_dichotomy}$ splits on whether every other
+        \fpath{aggregation_dichotomy} splits on whether every other
         $L'$ agrees with $L$ on objects.  If so, we are in
         Arrow-Debreu.  If not, the negation
         $\neg \forall L'\, \forall Y,\, L.\mathrm{obj}\,Y =
         L'.\mathrm{obj}\,Y$ is converted into an existential
         disagreement via two applications of
-        $\fpath{Classical.byContradiction}$ in pure term mode,
+        \fpath{Classical.byContradiction} in pure term mode,
         yielding witnesses $L'$ and $Y$ with
         $L.\mathrm{obj}\,Y \neq L'.\mathrm{obj}\,Y$, putting us in
         Schelling-Ising.
@@ -1104,6 +1114,20 @@ O.\ Obi.
 arrow-cat: A Lean 4 formalization of Arrow's Impossibility Theorem via
 the Geanakoplos pivotal-voter argument.
 \url{https://github.com/MavenRain/arrow-cat}.
+
+\bibitem{kan-tactics}
+O.\ Obi.
+kan-tactics: A Lean 4 tactic library whose primitives are derived
+from Kan extensions (the Mac Lane dictum, ``every tactic is a Kan
+extension'').
+\url{https://github.com/MavenRain/kan-tactics}.
+
+\bibitem{mathlib}
+The mathlib Community.
+The Lean mathematical library.
+In \textit{Proceedings of the 9th ACM SIGPLAN International
+Conference on Certified Programs and Proofs (CPP 2020)},
+pages 367--381, 2020.
 
 \end{thebibliography}
 
