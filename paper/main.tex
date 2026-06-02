@@ -91,33 +91,46 @@
 We give a Lean 4 formalization of a unification of three classical
 aggregation theorems (Arrow-Debreu equilibrium, Arrow's Impossibility
 Theorem, and the Schelling-Ising segregation model) as regimes of a
-single categorical object: the left Kan extension of a choice rule along
-the orbit projection of a symmetry group acting on a configuration
-category.  Phase~1a wires Arrow's theorem into the framework via the
-symmetric group action on preference profiles, with a strong
-no-equivariant-constrained-SWF theorem proved end to end (the
-\textit{anonymity} that the categorical $\Sm$ action encodes is shown to
-be incompatible with Pareto plus Independence of Irrelevant Alternatives
-for $m \geq 2$ voters and three or more alternatives).  Phase~1b realizes
-Schelling-Ising via the $\Ztwo$ action on spin configurations, with the
-symbolic bifurcation theorem (distinct ground states with equal
-Hamiltonian witnessing $\Ztwo$-broken attractor pairing) proved.
-Phase~2 realizes Arrow-Debreu symbolically via the $\Sm$ action on
+single categorical object: the left Kan extension of a choice rule
+along the orbit projection of a symmetry group acting on a
+configuration category.  Phase~1a wires Arrow's theorem into the
+framework via the symmetric group action on preference profiles,
+with a strong no-equivariant-constrained-SWF theorem proved end to
+end (the \textit{anonymity} that the categorical $\Sm$ action
+encodes is shown to be incompatible with Pareto plus Independence
+of Irrelevant Alternatives for $m \geq 2$ voters and three or more
+alternatives).  Phase~1b realizes Schelling-Ising via the $\Ztwo$
+action on spin configurations: at the symbolic level, distinct
+ground states with equal Hamiltonian witness $\Ztwo$-broken
+attractor pairing; at the analytic level, the mean-field
+bifurcation theorem
+($m = \tanh(\beta m)$: a unique solution $m = 0$ for $\beta \leq 1$,
+and a symmetry-broken pair for $\beta > 1$) is proved via Mathlib's
+intermediate value theorem applied to local helpers built on
+\fpath{Real.sinh}/\fpath{Real.cosh}/\fpath{Real.tanh}.  Phase~2
+realizes Arrow-Debreu symbolically via the $\Sm$ action on
 allocations, with the symmetric-uniqueness theorem proved (any two
 anonymous allocations agreeing at one consumer are equal).  The
-\emph{trichotomy} theorem itself is then proved: every aggregation
-problem inhabits exactly one of the three regimes, by classical case
-analysis on the existential structure of the left Kan extension.  The
-formalization is built on top of \texttt{comp-cat-theory} (categorical
-primitives), \texttt{kan-tactics} (term-mode proof primitives) and
-\texttt{arrow-cat} (the Geanakoplos pivotal-voter proof of Arrow's
-theorem), with no Mathlib dependency.  All three regimes of the
-trichotomy now have framework-load-bearing theorems proved end to end
-and the unification theorem connecting them is itself proved; the
-analytic forms of the Arrow-Debreu existence theorem (Kakutani fixed
-point) and the Schelling-Ising bifurcation theorem (Boltzmann + tanh +
-mean-field analysis) remain as future work requiring real-valued
-infrastructure.
+\emph{trichotomy} theorem itself is proved: every aggregation
+problem inhabits at least one of the three regimes, by classical
+case analysis on the existential structure of the left Kan
+extension.  The orbit-groupoid category structure underlying the
+construction is fully closed via the
+\fpath{UnifiedAggregation.HeqTransport} tactic stack, which strips
+\fpath{Eq.rec}/\fpath{cast}/\fpath{Eq.rec}-with-dependent-motive
+forms of the substitution operator $\blacktriangleright$ and lifts
+\fpath{HEq} through categorical composition (\fpath{Category.comp})
+and \fpath{Functor.map}.  The formalization is built on
+\fpath{comp-cat-theory} (categorical primitives),
+\fpath{kan-tactics} (proof primitives derived from Kan extensions),
+\fpath{arrow-cat} (the Geanakoplos pivotal-voter proof of Arrow's
+theorem), and Mathlib (real-analytic content for the bifurcation).
+All three regime witnesses, the trichotomy joining them, the
+orbit-groupoid laws, and both ends of the mean-field bifurcation
+are formally proved; the Lean source is sorry-free.  The remaining
+open direction is the analytic Arrow-Debreu existence theorem via
+Kakutani's fixed-point theorem, captured here only at the symbolic
+anonymity level.
 \end{abstract}
 
 \section{Introduction}
@@ -175,13 +188,16 @@ is fourfold.
 First, we lay out the categorical scaffolding (\fpath{ConfigSpace},
 \fpath{ChoiceRule}, \fpath{Aggregation}, \fpath{Regimes},
 \fpath{Trichotomy}) and the auxiliary infrastructure
-(\fpath{Discrete} categories, \fpath{SymmetricGroup} and \fpath{Z2Group}
-as instances of \fpath{SymmetryGroup}, two flavors of
-\fpath{Functor} extensionality including a load-bearing
-\fpath{Functor.ext_pointwise} lemma that handles obj-equality-up-to-
-pointwise-rewrite cases).  All of this is built on
-\texttt{comp-cat-theory}~\cite{compcat-theory}, with no Mathlib
-dependency.
+(\fpath{Discrete} categories, \fpath{SymmetricGroup} and
+\fpath{Z2Group} as instances of \fpath{SymmetryGroup}, two flavors
+of \fpath{Functor} extensionality including a load-bearing
+\fpath{Functor.ext_pointwise} lemma that handles
+obj-equality-up-to-pointwise-rewrite cases, and the
+\fpath{HeqTransport} tactic stack closing the four cast-tower
+\fpath{HEq} obligations the orbit groupoid produces).  All of this
+is built on \fpath{comp-cat-theory}~\cite{compcat-theory}; Mathlib
+is pulled for the analytic content of Phase~1b (real-valued
+mean-field bifurcation).
 
 Second, we wire Arrow's Impossibility Theorem into the framework via the
 $\Sm$ action on \fpath{Profile m \(\alpha\)} (Section~\ref{sec:phase1a}).
@@ -197,19 +213,28 @@ categorical $\Sm$-action encodes is the very obstruction.  arrow-cat's
 classical statement~\cite{arrow-cat} permits a dictator solution; the
 framework's anonymity requirement rules that out.
 
-Third, we realize the Schelling-Ising regime via the $\Ztwo$ action on
-spin configurations (Section~\ref{sec:phase1b}).  At the categorical
-level, \fpath{spinConfigAction : GAction Z2Group (SpinConfigCat n)} is
-fully proved using \fpath{Functor.ext_pointwise}.  At the
+Third, we realize the Schelling-Ising regime via the $\Ztwo$ action
+on spin configurations (Section~\ref{sec:phase1b}) at two levels.
+At the categorical level,
+\fpath{spinConfigAction : GAction Z2Group (SpinConfigCat n)} is
+fully proved using \fpath{Functor.ext_pointwise}.  At the symbolic
 phase-transition level, we define magnetization and the mean-field
-ferromagnetic Hamiltonian (integer-valued, $J = 1$), prove their $\Ztwo$
-inversion and invariance laws, and then prove a \emph{symbolic} form of
-the bifurcation theorem: \fpath{schelling_ising_z2_degeneracy}
-witnesses that for $n \geq 1$ the Hamiltonian admits at least two
-distinct configurations of equal energy.  This is the structural content
-of bifurcation (distinct attractors of the $\Ztwo$-equivariant
-dynamics) captured within an Int-level foundation that needs no
-real-number machinery.
+ferromagnetic Hamiltonian (integer-valued, $J = 1$), prove their
+$\Ztwo$ inversion and invariance laws, and prove
+\fpath{schelling_ising_z2_degeneracy}: for $n \geq 1$ the
+Hamiltonian admits at least two distinct configurations of equal
+energy, capturing the structural content of bifurcation (distinct
+attractors of the $\Ztwo$-equivariant dynamics).  At the analytic
+phase-transition level, we prove \fpath{mean_field_bifurcation}:
+the self-consistency equation $m = \tanh(\beta m)$ has unique
+solution $m = 0$ for $\beta \leq 1$ (paramagnetic phase) and a
+symmetry-broken pair $\pm m_\ast(\beta)$ for $\beta > 1$
+(ferromagnetic phase), via Mathlib's intermediate value theorem
+and three local helpers
+(\fpath{Real.tanh_strictMono},
+\fpath{Real.tanh_lt_self_of_pos},
+\fpath{Real.tanh_gt_self_sub_sq}) derived from
+\fpath{Real.sinh}/\fpath{Real.cosh} machinery.
 
 Fourth, we realize the Arrow-Debreu regime symbolically
 (Section~\ref{sec:phase2}) via the $\Sm$ action on integer-valued
@@ -232,15 +257,16 @@ witnesses above, this establishes that the three classical aggregation
 results are not independent theorems but regimes of a single
 construction.
 
-Sixth, we identify what remains.  The analytic Arrow-Debreu existence
-theorem (Kakutani fixed point) and the analytic Schelling-Ising
-bifurcation theorem (one component for $\beta < \beta_c$, two for
-$\beta > \beta_c$, with $\beta_c$ a specific real number) await a
-real-valued analysis layer, most naturally Mathlib.  Four cast-tower
-\fpath{HEq} sorries in \fpath{Aggregation.lean}'s orbit-groupoid
-construction remain as technical debt; they are orthogonal to the
-headline theorems but prevent the orbit-groupoid laws from being fully
-checked.
+Sixth, we identify what remains.  The Lean source is sorry-free as
+of \fpath{v0.3.0-framework-complete}: the analytic Schelling-Ising
+bifurcation has been closed, and the four cast-tower \fpath{HEq}
+obligations on the orbit-groupoid construction have all been closed
+via the \fpath{HeqTransport} tactic stack
+(Section~\ref{sec:foundations}).  The remaining mathematical
+direction is the analytic Arrow-Debreu existence theorem (Kakutani
+fixed point on convex compact correspondences), captured here only
+at the symbolic anonymity level; closing it would require a
+categorical Kakutani statement and Mathlib's convex analysis.
 
 \paragraph{Outline.}
 Section~\ref{sec:object} states the central categorical object and the
@@ -265,7 +291,8 @@ where $C$ is a small category, $G$ is a group, and $\alpha : G \to
 that is, $\alpha(e) = \id_C$ and $\alpha(gh) = \alpha(h) \circ
 \alpha(g)$.\footnote{We use the diagrammatic ordering convention
 $\alpha(gh) = \alpha(h) \circ \alpha(g)$ throughout, matching the
-\texttt{comp-cat-theory} convention $F \circ G = F \,\fpath{⋙}\, G$
+\fpath{comp-cat-theory} convention
+$F \circ G = F \mathbin{\fpath{Functor.comp}} G$
 for ``apply $F$ first, then $G$.''}
 \end{definition}
 
@@ -377,7 +404,7 @@ structure GAction (G : SymmetryGroup) (Obj : Type v)
 \ref{sec:phase2}) and \fpath{Z2Group} (Section~\ref{sec:phase1b})
 instantiate this interface.  Note the diagrammatic ordering
 convention for \fpath{act_mul}: $\alpha(gh) = \alpha(h) \circ
-\alpha(g)$, matching the \fpath{⋙} convention "apply $F$ first, then
+\alpha(g)$, matching the \fpath{Functor.comp} convention "apply $F$ first, then
 $G$" inherited from \fpath{comp-cat-theory}.
 
 \subsection{The orbit groupoid}
@@ -425,9 +452,9 @@ closed in \fpath{UnifiedAggregation/Aggregation.lean} via the
 
 The orbit-groupoid casts introduce \fpath{HEq} goals of the form
 \[
-  \mathrm{HEq}\; (h_1 \blacktriangleright (f \mathbin{\fpath{≫}} g))\;
+  \mathrm{HEq}\; (h_1 \blacktriangleright (f \mathbin{;} g))\;
                  (h_2 \blacktriangleright ((h_3 \blacktriangleright f)
-                  \mathbin{\fpath{≫}} F.\fpath{map}\,
+                  \mathbin{;} F.\fpath{map}\,
                     (h_4 \blacktriangleright g))),
 \]
 where each $h_i$ is a functor equality induced by \fpath{act_one} or
@@ -437,10 +464,12 @@ provides the closure machinery:
 \begin{itemize}
   \item Six \fpath{heq_*_uncast} tactics for stripping outer
         \fpath{Eq.recOn}, \fpath{cast}, and dependent-motive
-        \fpath{Eq.rec} forms of \fpath{▸}, plus the wrapper
+        \fpath{Eq.rec} forms of the substitution operator
+        $\blacktriangleright$, plus the wrapper
         \fpath{heq_strip} that iterates all six until convergence
         and then attempts \fpath{HEq.refl}.
-  \item Congruence lemmas \fpath{heq_comp} (for \fpath{≫}) and
+  \item Congruence lemmas \fpath{heq_comp} (for categorical
+        composition \fpath{Category.comp}) and
         \fpath{heq_functor_map} (for \fpath{Functor.map}) lifting
         \fpath{HEq} through structural sub-terms.
   \item An \fpath{idFunctor} family
@@ -451,11 +480,12 @@ provides the closure machinery:
         (\fpath{compFunctor_obj_eq}, \fpath{compFunctor_map_heq})
         for decomposing $\fpath{act}\, (G.\fpath{mul}\, g\, h)$ via
         \fpath{act_mul} as a functor composition $\fpath{act}\, h
-        \,\fpath{⋙}\, \fpath{act}\, g$.
+        \mathbin{\fpath{Functor.comp}} \fpath{act}\, g$.
 \end{itemize}
 
 The dependent-motive variant \fpath{eqRec_heq_dep} is necessary
-because Lean's \fpath{▸} elaborates type-level rewrites under a
+because Lean's substitution operator $\blacktriangleright$
+elaborates type-level rewrites under a
 type-applicative motive (such as
 $\fpath{fun}\, F \Rightarrow \fpath{Hom}\, X\, (F.\fpath{obj}\, Y)$) as
 \fpath{Eq.rec} with a motive of shape
@@ -617,7 +647,7 @@ def spinConfigAction (n : Nat) :
 \end{lstlisting}
 
 The \fpath{act_mul (.flip, .flip)} case is the load-bearing one:
-$(\fpath{act}\, \fpath{flip} \,\fpath{⋙}\,
+$(\fpath{act}\, \fpath{flip} \mathbin{\fpath{Functor.comp}}
 \fpath{act}\, \fpath{flip})(c) = c$ requires
 \fpath{SpinConfig.flip_flip : c.flip.flip = c} pointwise rather than
 \fpath{rfl}, so the standard \fpath{Functor.ext} cannot apply
@@ -858,8 +888,8 @@ some object.
 
 \begin{theorem}[trichotomy]
 \label{thm:trichotomy}
-For any configuration $(\alpha, F)$, exactly one of the three regime
-predicates holds:
+For any configuration $(\alpha, F)$, at least one of the three
+regime predicates holds:
 \[
   \mathrm{IsArrowDebreuRegime}(\alpha, F) \;\vee\;
   \mathrm{IsArrowImpossibilityRegime}(\alpha, F) \;\vee\;
