@@ -9,11 +9,13 @@ name = "UnifiedAggregation"
 
 [[require]]
 name = "comp-cat-theory"
-path = "../comp-cat-theory"
+git = "https://github.com/MavenRain/comp-cat-theory.git"
+rev = "main"
 
 [[require]]
 name = "arrow-cat"
-path = "../arrow-cat"
+git = "https://github.com/MavenRain/arrow-cat.git"
+rev = "main"
 
 [[require]]
 name = "doc-gen4"
