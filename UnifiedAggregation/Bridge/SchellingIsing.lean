@@ -1,34 +1,45 @@
 /-
   UnifiedAggregation.Bridge.SchellingIsing
 
-  Phase 1b foundations: the Schelling-Ising regime under the framework.
+  The Schelling-Ising regime under the framework.
 
   The configuration space is a finite collection of spins indexed by
   `Fin n` (n sites or n agents).  The `Z_2` symmetry acts by flipping
   all spins simultaneously.  The ferromagnetic Ising Hamiltonian is
   `Z_2`-invariant, so any `Z_2`-equivariant choice rule respects this
   symmetry; spontaneous symmetry breaking corresponds to the Lan
-  extension having multiple non-isomorphic selectors below the
-  critical temperature `β_c`.
+  extension having multiple non-isomorphic selectors above the
+  critical temperature `β_c = 1`.
 
-  This module lands the foundational pieces:
+  This module ships:
+
+  Categorical embedding:
   - `Spin` (two-element type) with `flip` and the involution law
   - `SpinConfig n` = `Fin n → Spin` with pointwise `flip`
   - The `Z_2` action on `Spin` and `SpinConfig n`
   - `SpinConfigCat n` = discrete category on spin configurations
-  - `spinConfigAction` : `GAction Z2Group (SpinConfigCat n)`
+  - `spinConfigAction : GAction Z2Group (SpinConfigCat n)`
 
-  The bifurcation theorem (universal cocone of `Lan_p F_β` has one
-  component for `β < β_c` and two for `β > β_c`) is stated with sorry;
-  its proof requires real-valued machinery (Boltzmann weights, the
-  mean-field magnetization equation, fixed-point analysis) outside the
-  scope of this commit.
+  Symbolic bifurcation theorem (Int-level):
+  - `Magnetization`, `Hamiltonian`, and their `Z_2` symmetry laws
+    (`Magnetization_flip`, `Hamiltonian_flip`)
+  - `schelling_ising_z2_degeneracy`: for `n ≥ 1` the Hamiltonian
+    admits at least two distinct configurations with equal energy
+
+  Analytic bifurcation theorem (Real-level, via Mathlib):
+  - `IsMeanFieldFixedPoint β m := m = Real.tanh (β * m)`
+  - `unique_fixed_point_paramagnetic` (`β ≤ 1`: only `m = 0`)
+  - `bifurcation_ferromagnetic` (`β > 1`: a symmetry-broken pair)
+  - `mean_field_bifurcation` packaging both ends
+
+  All theorems are sorry-free; the analytic helpers use Mathlib
+  tactics (`ring`, `linarith`, `nlinarith`, `field_simp`,
+  `positivity`) as a documented exception to the kan-tactics
+  convention.
 -/
 
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.Z2Group
-import UnifiedAggregation.Aggregation
-import UnifiedAggregation.Regimes
 import UnifiedAggregation.FunctorExt
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.DerivHyp
@@ -127,28 +138,22 @@ def configActByZ2 {n : Nat} (z : Z2) :
 /-- The `Z_2` action on `SpinConfig n` lifted to a `GAction` on
 `SpinConfigCat n`.
 
-`act_one` closes by the same `Functor.ext` recipe as `profileAction`
-(funext + rfl + heq_of_eq + match on `DiscreteHom.id`).
+`act_one` closes via the standard `Functor.ext` recipe (funext + rfl
++ heq_of_eq + match on `DiscreteHom.id`).
 
-`act_mul` case-splits on `(x, y)`:
-- `(.e, _)`, `(.g, .e)`: composition is definitional, same recipe.
-- `(.g, .g)`: sorried.  Here the obj fields are propositionally but
-  not definitionally equal:
-    LHS.obj X = ⟨X.val⟩  (after reducing actOnConfig .e)
-    RHS.obj X = ⟨X.val.flip.flip⟩  (double flip)
-  The equality `X.val.flip.flip = X.val` is `SpinConfig.flip_flip`,
-  applied componentwise on `Fin n → Spin` via funext.  This is the
-  same fundamental obstacle as the orbit-groupoid cast-tower HEqs in
-  `Aggregation.lean`: `Functor.ext`'s HEq on the `map` field needs
-  the obj fields definitionally equal to apply `heq_of_eq` after a
-  funext + match-on-`DiscreteHom.id` proof.  Resolving needs either:
-  - an HEq-aware Functor extensionality lemma that handles
-    obj-equal-up-to-funext, or
-  - a custom transport through the involution.
+`act_mul` is more delicate: in the `(.flip, .flip)` case the
+composed action's `obj` field is
+`⟨X.val.flip.flip⟩` while the identity action's `obj` field is
+`⟨X.val⟩`.  These are propositionally but not definitionally equal,
+with the equality witnessed pointwise by `SpinConfig.flip_flip`
+under a funext.  `Functor.ext` cannot apply directly here because
+its `HEq` on the `map` field requires the `obj` fields to be
+definitionally equal.
 
-Tracked alongside the Aggregation HEq sorries as a common technical
-obstruction.  The structural construction is in place; the law for
-`.g, .g` is the only remaining gap. -/
+`UnifiedAggregation.FunctorExt.Functor.ext_pointwise` closes this
+case: it consumes a pointwise obj-equality (built via funext +
+`flip_flip` on each `Spin`) and routes the `map` HEq through a
+`cases h`-and-rewrite pattern on the inferred motive. -/
 def spinConfigAction (n : Nat) :
     GAction Z2Group (SpinConfigCat n) where
   act := configActByZ2
@@ -345,10 +350,10 @@ attractor pairing. -/
 Hamiltonian admits at least two distinct configurations with equal
 energy, namely `upConfig n` and `downConfig n`.
 
-The minimality claim (these are the *ground states*) needs the
-magnetization bound `|M(c)| ≤ n`, which is provable by induction on
-`n` but is deferred — the Z₂-degeneracy claim alone is the
-load-bearing piece for symmetry-breaking. -/
+A sharper minimality claim (that these are the *ground states*, via
+the magnetization bound `|M(c)| ≤ n`) is left as a downstream
+extension; the Z₂-degeneracy claim alone is the load-bearing piece
+for symmetry-breaking. -/
 theorem schelling_ising_z2_degeneracy {n : Nat} (hn : 0 < n) :
     ∃ c₁ c₂ : SpinConfig n,
       c₁ ≠ c₂ ∧ Hamiltonian c₁ = Hamiltonian c₂ := by

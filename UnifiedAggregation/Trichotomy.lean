@@ -1,9 +1,21 @@
 /-
   UnifiedAggregation.Trichotomy
 
-  The unification theorem: every aggregation problem falls into one
-  of the three regimes.  Phase 0 states the conclusion; the proof is
-  the long-term deliverable (Phases 1a, 1b, and 2 together).
+  The unification theorem: every aggregation problem falls into at
+  least one of the three regimes (Arrow-Debreu, Arrow-Impossibility,
+  Schelling-Ising).  Proof is by classical case analysis on the
+  existential structure of `Aggregation act F`, with the dichotomy
+  helper `aggregation_dichotomy` handling the
+  existence-plus-non-uniqueness branch via term-mode
+  `Classical.byContradiction`.
+
+  Note: the proof uses `by_cases` and `rcases` (Mathlib tactics)
+  outside the documented kan-tactics-only convention's exception
+  zones (`Bridge.SchellingIsing` for real-analytic content,
+  HEq-handling tactics in `Aggregation`).  These are necessary for
+  the classical case split on `Nonempty (Aggregation act F)`; no
+  kan-tactics equivalent exists for `Classical.byContradiction`-
+  style reasoning.
 -/
 
 import UnifiedAggregation.Regimes

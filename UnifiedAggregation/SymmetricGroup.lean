@@ -2,14 +2,16 @@
   UnifiedAggregation.SymmetricGroup
 
   The symmetric group S_n on `Fin n`, constructed without Mathlib.
-  This is the anonymity-bearing group for Arrow's social-choice
-  setting: in Phase 1a's categorical embedding, S_m acts on
-  `Profile m α` by permuting voter indices, and arrow-cat's
-  `NonDictator` hypothesis corresponds to non-equivariance under this
-  action.
+  This is the anonymity-bearing group for both Arrow's social-choice
+  setting (`Bridge.ArrowImpossibility`) and the symbolic Arrow-Debreu
+  setting (`Bridge.ArrowDebreu`): S_m acts on `Profile m α` by
+  permuting voter indices, and on `Allocation m` by permuting
+  consumer indices.  In both cases anonymity is the S_m-equivariance
+  of the choice rule, and `arrow-cat`'s `NonDictator` hypothesis
+  corresponds to non-equivariance under this action.
 
-  Could plausibly upstream to comp-cat-theory or to a dedicated
-  group-theory reservoir; kept here during Phase 1.
+  Candidate for upstreaming to `comp-cat-theory` or to a dedicated
+  group-theory reservoir; kept local to avoid cross-repo churn.
 -/
 
 import UnifiedAggregation.ConfigSpace

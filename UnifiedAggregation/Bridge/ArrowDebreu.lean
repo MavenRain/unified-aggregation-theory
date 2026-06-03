@@ -20,8 +20,6 @@
 
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.SymmetricGroup
-import UnifiedAggregation.Aggregation
-import UnifiedAggregation.Regimes
 import UnifiedAggregation.FunctorExt
 import ArrowCat
 

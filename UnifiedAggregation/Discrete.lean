@@ -5,13 +5,16 @@
   `Discrete α` whose objects are values of `α` and whose only morphisms
   are identities.
 
-  Used by `Bridge.ArrowImpossibility` to view `Profile m α` and
-  `StrictPref α` as categorical objects: both carry no natural morphism
-  structure for the social-choice problem, only object-level data
+  Used by all three Bridge modules to view their underlying
+  configuration types (`Profile m α`, `SpinConfig n`, `Allocation m`)
+  and outcome types (`StrictPref α`) as categorical objects: each
+  carries no natural morphism structure for the social-choice /
+  Schelling-Ising / Arrow-Debreu problem, only object-level data
   matters.
 
-  Could plausibly upstream to `comp-cat-theory`; kept here for now to
-  avoid cross-repo work during Phase 1.
+  This module is a candidate for upstreaming to `comp-cat-theory`;
+  kept local to avoid cross-repo churn while the framework's API is
+  still stabilizing.
 -/
 
 import CompCatTheory.Foundation.Category

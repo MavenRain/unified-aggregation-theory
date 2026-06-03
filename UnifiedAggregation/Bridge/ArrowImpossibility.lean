@@ -26,23 +26,30 @@
   that no social aggregation simultaneously satisfies Pareto, IIA, and
   non-dictatorship.
 
-  Phase 1a-precursor: direct restatement of `ArrowCat.arrow_contrapositive`
-  in conjunctive non-existence form, proved.
-
-  Phase 1a (here, in progress): categorical embedding pieces.
+  This module ships:
     - `ProfileCat m α`: the discrete category on profiles
     - `actByPerm`: the endofunctor induced by a permutation of voters
     - `profileAction`: the `S_m` action assembled as a `GAction`
-
-  Phase 1a (remaining): the SWF-as-`ChoiceRule` embedding plus the
-  connecting theorem to `IsArrowImpossibilityRegime`.  This requires
-  refining `IsArrowImpossibilityRegime` (or adding a constraint-
-  parameterized companion) to capture Pareto + IIA + non-dictator as
-  the failure conditions.
+    - `SWFasChoiceRule`: an SWF lifted to a discrete-category functor
+    - Five headline theorems, all sorry-free:
+        - `arrow_impossibility`: direct restatement of
+          `ArrowCat.arrow_contrapositive` in conjunctive
+          non-existence form
+        - `equivariant_dictator_transfer`: under an
+          `S_m`-equivariant SWF, the dictator role transfers
+          between any two voters connected by a permutation
+        - `all_voters_dictator_under_equivariance`: every voter is
+          a dictator under equivariance
+        - `no_two_dictators`: two distinct dictators are
+          contradictory
+        - `no_equivariant_constrained_swf` (headline): no SWF over
+          `m ≥ 2` voters and three or more alternatives is
+          simultaneously `S_m`-equivariant and satisfies Pareto +
+          IIA
 -/
 
 import ArrowCat
-import UnifiedAggregation.Regimes
+import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.SymmetricGroup
 import UnifiedAggregation.FunctorExt
@@ -251,12 +258,13 @@ theorem no_two_dictators
 load-bearing: no SWF over `m ≥ 2` voters and 3+ alternatives can
 simultaneously be `S_m`-equivariant and satisfy Pareto + IIA.
 
-Proof structure (modulo two internal sorries):
+Proof structure:
 1. Arrow gives a dictator `k₀`.
-2. Equivariance + transitivity of `S_m` (sorry: needs the swap
-   permutation construction) makes every voter a dictator.
+2. Equivariance + transitivity of `S_m` (witnessed inline using
+   `arrow-cat`'s `swapMap` permutation) makes every voter a
+   dictator via `all_voters_dictator_under_equivariance`.
 3. Two distinct dictators give a disagreement-profile contradiction
-   (sorry: `no_two_dictators`).
+   via `no_two_dictators`.
 
 This is the headline theorem that justifies the categorical framing:
 arrow-cat's classical statement allows dictators, but the unified

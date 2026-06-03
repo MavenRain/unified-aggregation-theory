@@ -4,17 +4,24 @@
   Aggregation as a left Kan extension along the orbit projection
   p : C ⥤ C // G into the action groupoid.
 
-  The action groupoid `C // G` is structurally wrapped (rather than a
-  bare `def := Obj`) to keep the Category instance from colliding with
-  C's own Category instance via recursive typeclass lookup.  Morphisms
-  are pairs `(g, f : X.val → act(g)(Y.val))`; identity uses `act_one`
-  to cast `𝟙 X.val` into the orbit-typed form; composition uses
-  `act_mul` to bundle the group element with the transported C-morphism.
+  The action groupoid `C // G` is structurally wrapped (rather than
+  a bare `def := Obj`) to keep the Category instance from colliding
+  with C's own Category instance via recursive typeclass lookup.
+  Morphisms are pairs `(g, f : X.val → act(g)(Y.val))`; identity
+  uses `act_one` to cast `𝟙 X.val` into the orbit-typed form;
+  composition uses `act_mul` to bundle the group element with the
+  transported C-morphism.
 
-  The three Category laws (`comp_id`, `id_comp`, `assoc`) on the orbit
-  groupoid plus the two Functor laws on `orbitProjection` (`map_id`,
-  `map_comp`) are sorried in this commit and tracked as Phase 1a
-  follow-up — each is a multi-step rewrite through the cast machinery.
+  The three Category laws (`comp_id`, `id_comp`, `assoc`) on the
+  orbit groupoid plus the two Functor laws on `orbitProjection`
+  (`map_id`, `map_comp`) are closed via the
+  `UnifiedAggregation.HeqTransport` tactic stack: `heq_strip` peels
+  outer `act_one` / `act_mul` casts on each side, `heq_comp` and
+  `heq_functor_map` push HEq through composition and functor map,
+  and the `idFunctor_*` / `compFunctor_*` helper families collapse
+  `act G.one` to `idFunctor` and decompose `act (G.mul g h)` as
+  `act h ⋙ act g`, bridged through the underlying `Category` and
+  `Functor` laws as Eq → HEq lifts via `heq_of_eq`.
 -/
 
 import UnifiedAggregation.ChoiceRule
@@ -162,11 +169,12 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
             (act.act_mul q.g r.g).symm
             (q.f ≫ (act.act q.g).map r.f))).symm
 
-/-- The orbit projection `p : C ⥤ C // G`.  Sends each C-object to its
-wrapped form in `OrbitGroupoid` and each C-morphism `f : X → Y` to the
-orbit morphism `(G.one, f)` with the `act_one` cast.  Functoriality
-laws (`map_id`, `map_comp`) are sorried; both follow from the orbit
-groupoid laws plus the cast machinery. -/
+/-- The orbit projection `p : C ⥤ C // G`.  Sends each C-object to
+its wrapped form in `OrbitGroupoid` and each C-morphism `f : X → Y`
+to the orbit morphism `(G.one, f)` with the `act_one` cast.
+`map_id` closes definitionally; `map_comp` closes via the
+`HeqTransport` tactic stack (outer-cast peeling + HEq congruence on
+`≫` + the `idFunctor` collapse of `act.act G.one`). -/
 def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
     {G : SymmetryGroup.{w}} (act : GAction G Obj) :
     Obj ⥤ OrbitGroupoid act where

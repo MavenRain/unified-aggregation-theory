@@ -6,10 +6,18 @@
   `obj`, so the natural statement uses `HEq` on the maps.
 
   comp-cat-theory does not (yet) ship a `Functor.ext` lemma; this
-  module fills the gap locally and uses it to close the Phase 1a
-  group-action laws in `Bridge.ArrowImpossibility`.
+  module fills the gap locally.  It is load-bearing for the group-
+  action laws in all three Bridge modules:
 
-  Could plausibly upstream to comp-cat-theory; kept here for now.
+  - `Bridge.ArrowImpossibility.profileAction` (uses `Functor.ext`)
+  - `Bridge.SchellingIsing.spinConfigAction` (uses
+    `Functor.ext_pointwise` for the `(.flip, .flip)` case where
+    `act_mul` obj equality requires `SpinConfig.flip_flip`
+    pointwise rather than `rfl`)
+  - `Bridge.ArrowDebreu.allocationAction` (uses `Functor.ext`)
+
+  Candidate for upstreaming to `comp-cat-theory`; kept local to
+  avoid cross-repo churn.
 -/
 
 import CompCatTheory.Foundation.Category
