@@ -9,15 +9,14 @@
   existence-plus-non-uniqueness branch via term-mode
   `Classical.byContradiction`.
 
-  Note: the proof uses `by_cases` and `rcases` (Mathlib tactics)
-  outside the documented kan-tactics-only convention's exception
-  zones (`Bridge.SchellingIsing` for real-analytic content,
-  HEq-handling tactics in `Aggregation`).  These are necessary for
-  the classical case split on `Nonempty (Aggregation act F)`; no
-  kan-tactics equivalent exists for `Classical.byContradiction`-
-  style reasoning.
+  The classical case split on `Nonempty (Aggregation act F)` uses
+  `kan_by_cases` (the coproduct-elimination derived tactic over
+  `Classical.em`); the existence-plus-non-uniqueness branch is pure
+  term mode via `Classical.byContradiction`.  No standard Mathlib
+  tactics appear.
 -/
 
+import KanTactics
 import UnifiedAggregation.Regimes
 
 set_option autoImplicit false
@@ -38,22 +37,19 @@ private theorem aggregation_dichotomy
     {D : Type v} [Category.{v, v} D]
     {F : ChoiceRule Obj D}
     (h_exists : Nonempty (Aggregation act F)) :
-    IsArrowDebreuRegime act F ∨ IsSchellingIsingRegime act F := by
-  obtain ⟨L⟩ := h_exists
-  by_cases h_unique :
-      ∀ L' : Aggregation act F, ∀ Y, L.functor.obj Y = L'.functor.obj Y
-  · left
-    exact ⟨L, h_unique⟩
-  · right
-    have h_exists_neq :
-        ∃ L' : Aggregation act F,
-          ∃ Y, L.functor.obj Y ≠ L'.functor.obj Y :=
-      Classical.byContradiction fun h_neg =>
-        h_unique fun L' Y =>
-          Classical.byContradiction fun h_neq =>
-            h_neg ⟨L', Y, h_neq⟩
-    exact match h_exists_neq with
-          | ⟨L', Y, h_neq⟩ => ⟨L, L', Y, h_neq⟩
+    IsArrowDebreuRegime act F ∨ IsSchellingIsingRegime act F :=
+  match h_exists with
+  | ⟨L⟩ =>
+    (Classical.em
+        (∀ L' : Aggregation act F, ∀ Y, L.functor.obj Y = L'.functor.obj Y)).elim
+      (fun h_unique => Or.inl ⟨L, h_unique⟩)
+      (fun h_unique => Or.inr
+        (match (Classical.byContradiction fun h_neg =>
+                  h_unique fun L' Y =>
+                    Classical.byContradiction fun h_neq => h_neg ⟨L', Y, h_neq⟩
+                : ∃ L' : Aggregation act F, ∃ Y,
+                    L.functor.obj Y ≠ L'.functor.obj Y) with
+          | ⟨L', Y, h_neq⟩ => ⟨L, L', Y, h_neq⟩))
 
 /-- **The unification theorem.**  Every aggregation problem
 (`G`-action on a configuration category `Obj`, with a choice rule
@@ -83,12 +79,11 @@ theorem trichotomy
     IsArrowDebreuRegime act F ∨
     IsArrowImpossibilityRegime act F ∨
     IsSchellingIsingRegime act F := by
-  by_cases h_exists : Nonempty (Aggregation act F)
+  kan_by_cases h_exists : Nonempty (Aggregation act F)
   · -- An aggregation exists ⇒ dichotomy between Arrow-Debreu and Schelling-Ising.
-    rcases aggregation_dichotomy h_exists with h | h
-    · exact Or.inl h
-    · exact Or.inr (Or.inr h)
+    kan_exact (aggregation_dichotomy h_exists).elim
+      (fun h => Or.inl h) (fun h => Or.inr (Or.inr h))
   · -- No aggregation exists ⇒ Arrow-Impossibility.
-    exact Or.inr (Or.inl h_exists)
+    kan_exact Or.inr (Or.inl h_exists)
 
 end UnifiedAggregation

@@ -178,18 +178,16 @@ theorem equivariant_dictator_transfer
         f (fun i => p (σ.toFun i)) = f p)
     {k k' : Fin m} {σ : Perm m} (h_σ : σ.toFun k = k')
     (h_dict : SWF.Dictator f k) :
-    SWF.Dictator f k' := by
-  -- exception: standard tactics (intro/let/have/exact + rewrite via ▸)
-  -- since kan-tactics has no funext-style alternative for the rewrite.
-  intro p' a b h_pref
-  let p_new : Profile m α := fun i => p' (σ.toFun i)
-  have h_pn_k : p_new k = p' k' := by
-    show p' (σ.toFun k) = p' k'
-    rw [h_σ]
-  have h_pn_pref : (p_new k).pref a b := h_pn_k ▸ h_pref
-  have h_f_pn : (f p_new).pref a b := h_dict p_new a b h_pn_pref
-  have h_eq : f p_new = f p' := h_equiv σ p'
-  exact h_eq ▸ h_f_pn
+    SWF.Dictator f k' :=
+  -- Pure term mode: the dictator role at `k'` is discharged by pulling
+  -- the preference back along the permutation (`congrArg p' h_σ`), using
+  -- the dictator at `k`, then transporting through equivariance (`▸`).
+  fun p' a b h_pref =>
+    let p_new : Profile m α := fun i => p' (σ.toFun i)
+    have h_pn_k : p_new k = p' k' := congrArg p' h_σ
+    have h_pn_pref : (p_new k).pref a b := h_pn_k ▸ h_pref
+    have h_f_pn : (f p_new).pref a b := h_dict p_new a b h_pn_pref
+    (h_equiv σ p') ▸ h_f_pn
 
 /-- *Every voter is a dictator under equivariance*: if an SWF is
 equivariant under all permutations and the `S_m` action is transitive
@@ -208,11 +206,12 @@ theorem all_voters_dictator_under_equivariance
         f (fun i => p (σ.toFun i)) = f p)
     (hP : SWF.Pareto f) (hI : SWF.IIA f)
     (h_trans : ∀ (k k' : Fin m), ∃ σ : Perm m, σ.toFun k = k') :
-    ∀ k : Fin m, SWF.Dictator f k := by
-  intro k
-  obtain ⟨k₀, hD⟩ := arrow f h1 h3 hP hI
-  obtain ⟨σ, hσ⟩ := h_trans k₀ k
-  exact equivariant_dictator_transfer f h_equiv hσ hD
+    ∀ k : Fin m, SWF.Dictator f k :=
+  fun k =>
+    match arrow f h1 h3 hP hI with
+    | ⟨k₀, hD⟩ =>
+      match h_trans k₀ k with
+      | ⟨_, hσ⟩ => equivariant_dictator_transfer f h_equiv hσ hD
 
 /-- *Two distinct dictators are contradictory*: if any two distinct
 voters are both dictators of an SWF, a disagreement profile (where
@@ -230,29 +229,28 @@ theorem no_two_dictators
     (f : SWF m α)
     {k₁ k₂ : Fin m} (h_ne : k₁ ≠ k₂)
     (hD₁ : SWF.Dictator f k₁) (hD₂ : SWF.Dictator f k₂) :
-    False := by
-  obtain ⟨a, b, _, hab, _, _⟩ := h3
-  have h_ba : b ≠ a := Ne.symm hab
-  let p₀ := Classical.choice hNE
-  -- Profile: voter k₁ has b at bottom (so a > b), voter k₂ has a at
-  -- bottom (so b > a), others keep p₀'s preference.
-  let p : Profile m α := fun i =>
-    if i = k₁ then (p₀ k₁).moveBToBottom b
-    else if i = k₂ then (p₀ k₂).moveBToBottom a
-    else p₀ i
-  have h_pk1 : p k₁ = (p₀ k₁).moveBToBottom b := if_pos rfl
-  have h_pk2 : p k₂ = (p₀ k₂).moveBToBottom a := by
-    show (if k₂ = k₁ then (p₀ k₁).moveBToBottom b
-          else if k₂ = k₂ then (p₀ k₂).moveBToBottom a
-          else p₀ k₂) = _
-    rw [if_neg (Ne.symm h_ne), if_pos rfl]
-  have hPref_k1 : (p k₁).pref a b :=
-    h_pk1 ▸ moveBToBottom_pref_other_b _ hab
-  have hPref_k2 : (p k₂).pref b a :=
-    h_pk2 ▸ moveBToBottom_pref_other_b _ h_ba
-  have h_fab : (f p).pref a b := hD₁ p a b hPref_k1
-  have h_fba : (f p).pref b a := hD₂ p b a hPref_k2
-  exact (f p).asym a b h_fab h_fba
+    False :=
+  -- Pure term mode.  Build the disagreement profile, reduce the two
+  -- relevant `ite`s by `if_pos`/`if_neg`, transport the resulting
+  -- preferences through the dictator hypotheses, and contradict
+  -- asymmetry.
+  match h3 with
+  | ⟨a, b, _, hab, _, _⟩ =>
+    let p₀ := Classical.choice hNE
+    -- Profile: voter k₁ has b at bottom (so a > b), voter k₂ has a at
+    -- bottom (so b > a), others keep p₀'s preference.
+    let p : Profile m α := fun i =>
+      if i = k₁ then (p₀ k₁).moveBToBottom b
+      else if i = k₂ then (p₀ k₂).moveBToBottom a
+      else p₀ i
+    have h_pk1 : p k₁ = (p₀ k₁).moveBToBottom b := if_pos rfl
+    have h_pk2 : p k₂ = (p₀ k₂).moveBToBottom a :=
+      (if_neg (Ne.symm h_ne)).trans (if_pos rfl)
+    have hPref_k1 : (p k₁).pref a b :=
+      h_pk1 ▸ moveBToBottom_pref_other_b _ hab
+    have hPref_k2 : (p k₂).pref b a :=
+      h_pk2 ▸ moveBToBottom_pref_other_b _ (Ne.symm hab)
+    (f p).asym a b (hD₁ p a b hPref_k1) (hD₂ p b a hPref_k2)
 
 /-- *Strong connection theorem* — the framework's `S_m` action is
 load-bearing: no SWF over `m ≥ 2` voters and 3+ alternatives can
@@ -277,30 +275,28 @@ theorem no_equivariant_constrained_swf
     ¬ ∃ (f : SWF m α),
         (∀ (σ : Perm m) (p : Profile m α),
             f (fun i => p (σ.toFun i)) = f p) ∧
-        SWF.Pareto f ∧ SWF.IIA f := by
-  intro ⟨f, h_equiv, hP, hI⟩
-  -- Transitivity of S_m action on Fin m, using arrow-cat's swapMap
-  -- to build the swap permutation when k ≠ k'.
-  have h_trans : ∀ (k k' : Fin m), ∃ σ : Perm m, σ.toFun k = k' := fun k k' =>
-    if h : k = k' then
-      ⟨Perm.id m, h⟩
-    else
-      ⟨{ toFun := swapMap k k'
-         invFun := swapMap k k'
-         left_inv := swapMap_involution k k'
-         right_inv := swapMap_involution k k' },
-        swapMap_at_a k k'⟩
-  -- Every voter is a dictator
-  have h_all : ∀ k : Fin m, SWF.Dictator f k :=
-    all_voters_dictator_under_equivariance
-      (Nat.lt_of_lt_of_le Nat.zero_lt_two h2) h3 f h_equiv hP hI h_trans
-  -- For m ≥ 2 there are two distinct voters: ⟨0, _⟩ and ⟨1, _⟩
-  let k₀ : Fin m := ⟨0, Nat.lt_of_lt_of_le Nat.zero_lt_two h2⟩
-  let k₁ : Fin m := ⟨1, h2⟩
-  have hk0_ne_k1 : k₀ ≠ k₁ := by
-    intro heq
-    have : (0 : Nat) = 1 := congrArg Fin.val heq
-    exact absurd this (by decide)
-  exact no_two_dictators h2 h3 hNE f hk0_ne_k1 (h_all k₀) (h_all k₁)
+        SWF.Pareto f ∧ SWF.IIA f :=
+  -- Pure term mode.  Destructure the hypothetical equivariant SWF,
+  -- build `S_m`-transitivity inline (identity or `swapMap`), promote it
+  -- to universal dictatorship, then contradict via `no_two_dictators`
+  -- on the two distinct voters `⟨0,_⟩`, `⟨1,_⟩` (`0 ≠ 1` term-mode via
+  -- `Nat.one_ne_zero`, replacing the original `decide`).
+  fun ⟨f, h_equiv, hP, hI⟩ =>
+    let h_trans : ∀ (k k' : Fin m), ∃ σ : Perm m, σ.toFun k = k' := fun k k' =>
+      if h : k = k' then
+        ⟨Perm.id m, h⟩
+      else
+        ⟨{ toFun := swapMap k k'
+           invFun := swapMap k k'
+           left_inv := swapMap_involution k k'
+           right_inv := swapMap_involution k k' },
+          swapMap_at_a k k'⟩
+    let h_all : ∀ k : Fin m, SWF.Dictator f k :=
+      all_voters_dictator_under_equivariance
+        (Nat.lt_of_lt_of_le Nat.zero_lt_two h2) h3 f h_equiv hP hI h_trans
+    no_two_dictators h2 h3 hNE f
+      (fun heq => Nat.one_ne_zero (congrArg Fin.val heq).symm)
+      (h_all ⟨0, Nat.lt_of_lt_of_le Nat.zero_lt_two h2⟩)
+      (h_all ⟨1, h2⟩)
 
 end UnifiedAggregation.Bridge

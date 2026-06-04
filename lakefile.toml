@@ -7,6 +7,16 @@ name = "UnifiedAggregation"
 # TODO: re-enable `-DwarningAsError=true` once Phase 1 lands and the
 # Phase 0 `sorry` stubs are replaced with real proofs.
 
+# Local dev override: consume the in-tree kan-tactics (carrying the
+# `substitution`/`kan_subst` + `kan_by_cases` extensions) so UAT's
+# tactic blocks are kan-tactics-only.  This root-level path require
+# supersedes arrow-cat's transitive git require of the same name.
+# Switch back to a git require + `lake update` once kan-tactics is
+# pushed.
+[[require]]
+name = "kan-tactics"
+path = "../kan-tactics"
+
 [[require]]
 name = "comp-cat-theory"
 git = "https://github.com/MavenRain/comp-cat-theory.git"

@@ -1,4 +1,5 @@
 import Lean
+import KanTactics
 import CompCatTheory.Foundation.Category
 
 /-!
@@ -64,27 +65,27 @@ theorem eqRec_heq_dep {α : Sort u} {a b : α} (h : a = b)
     {motive : (x : α) → a = x → Sort v}
     (refl : motive a (Eq.refl a)) :
     HEq (@Eq.rec α a motive refl b h) refl := by
-  cases h
-  exact HEq.refl _
+  kan_subst h
+  kan_exact HEq.refl _
 
 /-- Close an `HEq` goal `HEq a a` (both sides definitionally
 equal). -/
 syntax "heq_refl" : tactic
 macro_rules
-  | `(tactic| heq_refl) => `(tactic| exact HEq.refl _)
+  | `(tactic| heq_refl) => `(tactic| kan_exact HEq.refl _)
 
 /-- Strip one outer `Eq.recOn` cast from the LHS of an HEq goal.
 Transforms `HEq (h ▸ x) y` into `HEq x y` via `eqRec_heq`. -/
 syntax "heq_lhs_uncast" : tactic
 macro_rules
   | `(tactic| heq_lhs_uncast) =>
-    `(tactic| refine HEq.trans (eqRec_heq _ _) ?_)
+    `(tactic| kan_refine HEq.trans (eqRec_heq _ _) ?_)
 
 /-- Strip one outer `Eq.recOn` cast from the RHS of an HEq goal. -/
 syntax "heq_rhs_uncast" : tactic
 macro_rules
   | `(tactic| heq_rhs_uncast) =>
-    `(tactic| refine HEq.trans ?_ (HEq.symm (eqRec_heq _ _)))
+    `(tactic| kan_refine HEq.trans ?_ (HEq.symm (eqRec_heq _ _)))
 
 /-- Strip one outer `cast` from the LHS of an HEq goal.  Variant
 of `heq_lhs_uncast` using `cast_heq` for the non-dependent
@@ -92,13 +93,13 @@ type-conversion form of `▸`. -/
 syntax "heq_lhs_uncast_cast" : tactic
 macro_rules
   | `(tactic| heq_lhs_uncast_cast) =>
-    `(tactic| refine HEq.trans (cast_heq _ _) ?_)
+    `(tactic| kan_refine HEq.trans (cast_heq _ _) ?_)
 
 /-- Strip one outer `cast` from the RHS of an HEq goal. -/
 syntax "heq_rhs_uncast_cast" : tactic
 macro_rules
   | `(tactic| heq_rhs_uncast_cast) =>
-    `(tactic| refine HEq.trans ?_ (HEq.symm (cast_heq _ _)))
+    `(tactic| kan_refine HEq.trans ?_ (HEq.symm (cast_heq _ _)))
 
 /-- Strip one outer `Eq.rec` cast from the LHS of an HEq goal,
 handling the *dependent-motive* form produced by `▸` when the
@@ -108,14 +109,14 @@ the equation as an explicit argument so motive inference succeeds. -/
 syntax "heq_lhs_uncast_dep" : tactic
 macro_rules
   | `(tactic| heq_lhs_uncast_dep) =>
-    `(tactic| refine HEq.trans (UnifiedAggregation.eqRec_heq_dep _ _) ?_)
+    `(tactic| kan_refine HEq.trans (UnifiedAggregation.eqRec_heq_dep _ _) ?_)
 
 /-- Strip one outer `Eq.rec` cast from the RHS of an HEq goal,
 handling the dependent-motive form. -/
 syntax "heq_rhs_uncast_dep" : tactic
 macro_rules
   | `(tactic| heq_rhs_uncast_dep) =>
-    `(tactic| refine HEq.trans ?_ (HEq.symm (UnifiedAggregation.eqRec_heq_dep _ _)))
+    `(tactic| kan_refine HEq.trans ?_ (HEq.symm (UnifiedAggregation.eqRec_heq_dep _ _)))
 
 /-- Iteratively strip outer casts from both sides of an HEq goal,
 then close with `HEq.refl` if both sides have aligned.
@@ -135,6 +136,20 @@ elab_rules : tactic
         pure true
       catch _ =>
         pure false
+    -- The loop's progress detection depends on each peel step *failing*
+    -- (throwing, so `tryTac` returns `false`) when its cast is absent.
+    -- That failure is precisely Lean `refine`'s strict treatment of the
+    -- unsolvable `_` placeholders in `eqRec_heq _ _` etc.: when the goal
+    -- side is not a `▸`, those holes cannot be unified and `refine`
+    -- errors.  `kan_refine` (the precomposition-refine Kan extension)
+    -- instead collects every unsolved `_` as a fresh subgoal, so it can
+    -- never report "this cast does not apply" — it would fake-progress to
+    -- the fuel bound on every goal.  `heq_strip` is therefore an
+    -- *elaborator*, and like the kan-tactics primitives themselves (which
+    -- are built from `kabstract` / `elabTerm` / `MVarId.intro`, not from
+    -- other kan tactics) its substrate is Lean meta-programming.  The
+    -- single-shot `heq_*_uncast` macros above, used in isolation where the
+    -- cast is known present, are the kan_refine-based surface.
     let lhsTac <- `(tactic| refine HEq.trans (eqRec_heq _ _) ?_)
     let rhsTac <- `(tactic| refine HEq.trans ?_ (HEq.symm (eqRec_heq _ _)))
     let lhsCastTac <- `(tactic| refine HEq.trans (cast_heq _ _) ?_)
@@ -180,11 +195,11 @@ theorem heq_comp {Obj : Type u} [Category.{u, v} Obj]
     {f₁ : Category.Hom X Y₁} {f₂ : Category.Hom X Y₂} (hf : HEq f₁ f₂)
     {g₁ : Category.Hom Y₁ Z₁} {g₂ : Category.Hom Y₂ Z₂} (hg : HEq g₁ g₂) :
     HEq (f₁ ≫ g₁) (f₂ ≫ g₂) := by
-  cases hY
-  cases hZ
-  cases hf
-  cases hg
-  exact HEq.refl _
+  kan_subst hY
+  kan_subst hZ
+  kan_subst hf
+  kan_subst hg
+  kan_exact HEq.refl _
 
 /-- HEq congruence for `Functor.map`.  Given functor equality
 `F = G` and object equalities `X₁ = X₂`, `Y₁ = Y₂` aligning the
@@ -196,11 +211,11 @@ theorem heq_functor_map {C : Type u₁} [Category.{u₁, v₁} C]
     {X₁ X₂ Y₁ Y₂ : C} (hX : X₁ = X₂) (hY : Y₁ = Y₂)
     {f₁ : Category.Hom X₁ Y₁} {f₂ : Category.Hom X₂ Y₂} (hf : HEq f₁ f₂) :
     HEq (F.map f₁) (G.map f₂) := by
-  cases hFG
-  cases hX
-  cases hY
-  cases hf
-  exact HEq.refl _
+  kan_subst hFG
+  kan_subst hX
+  kan_subst hY
+  kan_subst hf
+  kan_exact HEq.refl _
 
 /-- If a functor equals `Functor.idFunctor`, then `F.map f` is HEq
 to `f`.  Used to collapse `act.act G.one`-applications via the
@@ -209,16 +224,16 @@ theorem idFunctor_map_heq {C : Type u} [Category.{u, v} C]
     {F : C ⥤ C} (hF : F = Functor.idFunctor C)
     {X Y : C} (f : Category.Hom X Y) :
     HEq (F.map f) f := by
-  cases hF
-  exact HEq.refl _
+  kan_subst hF
+  kan_exact HEq.refl _
 
 /-- If a functor equals `Functor.idFunctor`, then `F.obj X = X`.
 Companion to `idFunctor_map_heq` for the object-level collapse. -/
 theorem idFunctor_obj_eq {C : Type u} [Category.{u, v} C]
     {F : C ⥤ C} (hF : F = Functor.idFunctor C) (X : C) :
     F.obj X = X := by
-  cases hF
-  rfl
+  kan_subst hF
+  kan_rfl
 
 /-- Two-fold version of `idFunctor_obj_eq`: under `F = idFunctor`,
 `F.obj (F.obj X) = X`.  Needed for the orbit-groupoid `map_comp`
@@ -226,8 +241,8 @@ where the cast tower carries two `act_one` substitutions. -/
 theorem idFunctor_obj_eq_twice {C : Type u} [Category.{u, v} C]
     {F : C ⥤ C} (hF : F = Functor.idFunctor C) (X : C) :
     F.obj (F.obj X) = X := by
-  cases hF
-  rfl
+  kan_subst hF
+  kan_rfl
 
 /-- If a functor `H` equals a composition `F ⋙ G`, then `H.obj X`
 unfolds to `G.obj (F.obj X)`.  Used for the `act_mul`-driven
@@ -235,8 +250,8 @@ type alignments in the orbit-groupoid `assoc` proof. -/
 theorem compFunctor_obj_eq {C : Type u} [Category.{u, v} C]
     {F G H : C ⥤ C} (hH : H = F ⋙ G) (X : C) :
     H.obj X = G.obj (F.obj X) := by
-  cases hH
-  rfl
+  kan_subst hH
+  kan_rfl
 
 /-- HEq version of `compFunctor_obj_eq` lifted to `Functor.map`:
 if `H = F ⋙ G`, then `H.map f` is HEq to `G.map (F.map f)`. -/
@@ -244,8 +259,8 @@ theorem compFunctor_map_heq {C : Type u} [Category.{u, v} C]
     {F G H : C ⥤ C} (hH : H = F ⋙ G)
     {X Y : C} (f : Hom X Y) :
     HEq (H.map f) (G.map (F.map f)) := by
-  cases hH
-  exact HEq.refl _
+  kan_subst hH
+  kan_exact HEq.refl _
 
 /-! ## Smoke tests
 

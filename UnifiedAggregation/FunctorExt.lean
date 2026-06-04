@@ -20,6 +20,7 @@
   avoid cross-repo churn.
 -/
 
+import KanTactics
 import CompCatTheory.Foundation.Category
 
 set_option autoImplicit false
@@ -29,6 +30,28 @@ universe u₁ v₁ u₂ v₂
 namespace UnifiedAggregation
 
 open CompCatTheory Category
+
+/-- The map-level `HEq` that the pointwise functor extensionality needs:
+given object maps `Fo`, `Go` that are equal *as functions* and morphism
+maps that agree pointwise (as `HEq`), the bundled morphism maps are `HEq`.
+
+Stating `Fo`/`Go` as plain function variables (rather than the `obj`
+*field projection* of a functor) is what lets `kan_subst` fire: the
+equation `ho : Fo = Go` has a free variable on each side, so the
+substitution Kan extension aligns the two map types definitionally,
+after which the pointwise `HEq`s collapse to a function `Eq` lifted back
+to `HEq`. -/
+private theorem functorMapHEq {C : Type u₁} {D : Type u₂}
+    [Category.{u₁, v₁} C] [Category.{u₂, v₂} D] {Fo Go : C → D}
+    {Fm : {X Y : C} → Hom X Y → Hom (Fo X) (Fo Y)}
+    {Gm : {X Y : C} → Hom X Y → Hom (Go X) (Go Y)}
+    (ho : Fo = Go)
+    (hm : ∀ {X Y : C} (f : Hom X Y), HEq (Fm f) (Gm f)) :
+    HEq @Fm @Gm := by
+  kan_subst ho
+  kan_exact heq_of_eq
+    (funext (fun (X : C) => funext (fun (Y : C) => funext (fun (f : Hom X Y) =>
+      eq_of_heq (hm f)))))
 
 /-- Extensionality for functors: two functors are equal when their
 `obj` and `map` fields agree.  The `map` field's type depends on
@@ -50,31 +73,17 @@ pointwise (as `HEq`, since `map`'s type depends on `obj`).
 This is the load-bearing lemma for proving Functor equalities where
 the obj fields are propositionally but not definitionally equal —
 the situation that blocks `heq_of_eq` in the simpler `Functor.ext`
-recipe.  Uses `subst` to identify obj-fields after `funext`, then
-`eq_of_heq` to convert pointwise HEq to pointwise Eq, then `funext`
-to lift to function equality.
+recipe.
 
-Proof structure: destructure F and G into their four-tuple form, use
-`funext h_obj` to get `F_obj = G_obj` and `subst` to identify them in
-the context, use `funext` over `X, Y, f` plus `eq_of_heq` to get
-`F_map = G_map`, `subst` again, then `rfl` closes by structure η plus
-propositional irrelevance on the residual law fields. -/
+Proof: term mode, reducing to `Functor.ext` by supplying the bundled
+object equality `funext h_obj` and the bundled map `HEq` produced by
+`functorMapHEq` (whose `kan_subst` aligns the two map types). -/
 theorem Functor.ext_pointwise {C : Type u₁} {D : Type u₂}
     [Category.{u₁, v₁} C] [Category.{u₂, v₂} D]
     (F G : C ⥤ D)
     (h_obj : ∀ X : C, F.obj X = G.obj X)
     (h_map : ∀ {X Y : C} (f : Hom X Y), HEq (F.map f) (G.map f)) :
-    F = G := by
-  cases F with
-  | mk F_obj F_map F_id F_comp =>
-  cases G with
-  | mk G_obj G_map G_id G_comp =>
-    have h_obj_eq : F_obj = G_obj := funext h_obj
-    subst h_obj_eq
-    have h_map_eq : @F_map = @G_map := by
-      funext X Y f
-      exact eq_of_heq (h_map f)
-    subst h_map_eq
-    rfl
+    F = G :=
+  Functor.ext (funext h_obj) (functorMapHEq (funext h_obj) h_map)
 
 end UnifiedAggregation

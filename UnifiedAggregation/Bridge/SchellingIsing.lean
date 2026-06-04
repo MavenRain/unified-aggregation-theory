@@ -32,12 +32,15 @@
   - `bifurcation_ferromagnetic` (`β > 1`: a symmetry-broken pair)
   - `mean_field_bifurcation` packaging both ends
 
-  All theorems are sorry-free; the analytic helpers use Mathlib
-  tactics (`ring`, `linarith`, `nlinarith`, `field_simp`,
-  `positivity`) as a documented exception to the kan-tactics
-  convention.
+  All theorems are sorry-free.  The symbolic (categorical / Int-level)
+  half above uses only kan-tactics and term mode.  The analytic half
+  below is proved against Mathlib's real-analysis library and uses its
+  arithmetic decision procedures (`ring`, `linarith`, `nlinarith`,
+  `field_simp`, `positivity`) — a declared Mathlib dependency
+  boundary, not a gap in the kan-tactics span.
 -/
 
+import KanTactics
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.Z2Group
 import UnifiedAggregation.FunctorExt
@@ -135,6 +138,17 @@ def configActByZ2 {n : Nat} (z : Z2) :
     SpinConfigCat n ⥤ SpinConfigCat n :=
   discreteFunctor (Z2.actOnConfig z)
 
+/-- Two discrete identity morphisms with propositionally-equal objects
+are `HEq`.  The object equality `h : A = B` is a hypothesis with a free
+variable on each side, so `kan_subst` aligns the two `id` types
+definitionally, after which `HEq.rfl` closes.  Used for the `(.g, .g)`
+case of `spinConfigAction.act_mul`, where the two functor `obj` fields
+agree only up to `SpinConfig.flip_flip`. -/
+private theorem heqDiscreteId {α : Type} {A B : Discrete α} (h : A = B) :
+    HEq (DiscreteHom.id A) (DiscreteHom.id B) := by
+  kan_subst h
+  kan_exact HEq.rfl
+
 /-- The `Z_2` action on `SpinConfig n` lifted to a `GAction` on
 `SpinConfigCat n`.
 
@@ -152,8 +166,9 @@ definitionally equal.
 
 `UnifiedAggregation.FunctorExt.Functor.ext_pointwise` closes this
 case: it consumes a pointwise obj-equality (built via funext +
-`flip_flip` on each `Spin`) and routes the `map` HEq through a
-`cases h`-and-rewrite pattern on the inferred motive. -/
+`flip_flip` on each `Spin`) and discharges the `map` HEq, after
+matching the single `.id` morphism, through the `kan_subst`-based
+`heqDiscreteId` helper. -/
 def spinConfigAction (n : Nat) :
     GAction Z2Group (SpinConfigCat n) where
   act := configActByZ2
@@ -163,31 +178,29 @@ def spinConfigAction (n : Nat) :
       (heq_of_eq (funext (fun _ => funext (fun _ => funext (fun h =>
         match h with
         | DiscreteHom.id _ => rfl)))))
-  act_mul x y := by
+  act_mul x y :=
     match x, y with
     | .e, _ =>
-      exact UnifiedAggregation.Functor.ext (funext (fun _ => rfl))
+      UnifiedAggregation.Functor.ext (funext (fun _ => rfl))
         (heq_of_eq (funext (fun _ => funext (fun _ => funext (fun h =>
           match h with
           | DiscreteHom.id _ => rfl)))))
     | .g, .e =>
-      exact UnifiedAggregation.Functor.ext (funext (fun _ => rfl))
+      UnifiedAggregation.Functor.ext (funext (fun _ => rfl))
         (heq_of_eq (funext (fun _ => funext (fun _ => funext (fun h =>
           match h with
           | DiscreteHom.id _ => rfl)))))
     | .g, .g =>
-      apply UnifiedAggregation.Functor.ext_pointwise
-      · -- pointwise obj equality: ⟨X.val⟩ = ⟨X.val.flip.flip⟩ via flip_flip
-        intro X
-        exact congrArg Discrete.mk (SpinConfig.flip_flip X.val).symm
-      · -- pointwise map HEq.
-        intro X Y h
-        cases h
-        show HEq (DiscreteHom.id (⟨X.val⟩ : SpinConfigCat n))
-                 (DiscreteHom.id (⟨X.val.flip.flip⟩ : SpinConfigCat n))
-        have h_obj_X : (⟨X.val.flip.flip⟩ : SpinConfigCat n) = ⟨X.val⟩ :=
-          congrArg Discrete.mk (SpinConfig.flip_flip X.val)
-        rw [h_obj_X]
+      -- obj fields differ by `flip_flip` (propositional, not definitional),
+      -- so route through pointwise extensionality; the single `.id`
+      -- morphism's `HEq` follows from the object equality via the
+      -- `kan_subst`-based `heqDiscreteId` helper.
+      UnifiedAggregation.Functor.ext_pointwise _ _
+        (fun X => congrArg Discrete.mk (SpinConfig.flip_flip X.val).symm)
+        (fun {X _Y} h =>
+          match h with
+          | DiscreteHom.id _ =>
+            heqDiscreteId (congrArg Discrete.mk (SpinConfig.flip_flip X.val).symm))
 
 /-! ## Bifurcation machinery — magnetization (order parameter)
 
@@ -232,31 +245,21 @@ magnetization.  This is the key symmetry that drives spontaneous
 symmetry breaking in Ising — `m = 0` is the unique symmetric fixed
 point, and any nonzero `m_*` comes in `Z₂`-related pairs `±m_*`.
 
-Inductive proof on `n`: the last-index spin's flip negates its
-signed value (`spinValue_flip`); the tail-restriction's flip is
-the SpinConfig.flip of the restriction (rfl).  The arithmetic
-identity `-a + -b = -(a + b)` closes by `omega`. -/
-theorem Magnetization_flip {n : Nat} (c : SpinConfig n) :
-    Magnetization c.flip = -Magnetization c := by
-  induction n with
-  | zero => rfl
-  | succ k ih =>
-    show spinValue (c.flip (Fin.last k))
-          + sumSpinValues k (fun i => c.flip (Fin.castSucc i))
-       = -(spinValue (c (Fin.last k))
-          + sumSpinValues k (fun i => c (Fin.castSucc i)))
-    have h_last : spinValue (c.flip (Fin.last k))
-                  = -spinValue (c (Fin.last k)) := spinValue_flip _
-    have h_tail_eq :
-        (fun i : Fin k => c.flip (Fin.castSucc i))
-          = SpinConfig.flip (fun i : Fin k => c (Fin.castSucc i)) := rfl
-    have h_tail :
-        sumSpinValues k (fun i : Fin k => c.flip (Fin.castSucc i))
-          = -sumSpinValues k (fun i : Fin k => c (Fin.castSucc i)) := by
-      rw [h_tail_eq]
-      exact ih (fun i : Fin k => c (Fin.castSucc i))
-    rw [h_last, h_tail]
-    omega
+Term-mode structural recursion on `n`: the last-index spin's flip
+negates its signed value (`spinValue_flip`); the tail-restriction's
+flip is the `SpinConfig.flip` of the restriction (definitional, so the
+recursive call applies directly).  `congrArg₂ (·+·)` combines the two,
+and `(neg_add _ _).symm` folds `-a + -b` back into `-(a + b)`. -/
+theorem Magnetization_flip : ∀ {n : Nat} (c : SpinConfig n),
+    Magnetization c.flip = -Magnetization c
+  | 0, _ => rfl
+  | k + 1, c =>
+    -- `M((k+1)-config) = sv(last) + M(tail)`; flip negates each summand
+    -- (`spinValue_flip`, recursion on the tail) and `neg_add` folds the
+    -- two negations back into one.  Pure term-mode structural recursion.
+    (congrArg₂ (· + ·) (spinValue_flip (c (Fin.last k)))
+        (Magnetization_flip (fun i => c (Fin.castSucc i)))).trans
+      (neg_add _ _).symm
 
 /-! ## Hamiltonian (mean-field, integer-valued) -/
 
@@ -285,9 +288,12 @@ Proved by chaining `Magnetization_flip` (which gives
 `M(c.flip) = -M(c)`) with the standard `(-x)·(-x) = x·x` law via
 `Int.neg_mul`, `Int.mul_neg`, `Int.neg_neg`. -/
 theorem Hamiltonian_flip {n : Nat} (c : SpinConfig n) :
-    Hamiltonian c.flip = Hamiltonian c := by
-  unfold Hamiltonian
-  rw [Magnetization_flip, Int.neg_mul, Int.mul_neg, Int.neg_neg]
+    Hamiltonian c.flip = Hamiltonian c :=
+  -- `H = -(M·M)`; `M(flip) = -M` and `(-M)·(-M) = M·M` (`neg_mul_neg`),
+  -- so the energy is invariant.  Term mode (`unfold` would force the
+  -- `Magnetization` defn open, which `kan_dsimp` cannot scope).
+  (congrArg (fun z => -(z * z)) (Magnetization_flip c)).trans
+    (congrArg Neg.neg (neg_mul_neg (Magnetization c) (Magnetization c)))
 
 /-! ## Ground states: upConfig and downConfig -/
 
@@ -307,28 +313,23 @@ theorem downConfig_flip (n : Nat) : (downConfig n).flip = upConfig n :=
 
 /-- For `n ≥ 1`, `upConfig` and `downConfig` are distinct configurations. -/
 theorem upConfig_ne_downConfig {n : Nat} (hn : 0 < n) :
-    upConfig n ≠ downConfig n := by
-  intro h
-  exact Spin.noConfusion (congrFun h ⟨0, hn⟩)
+    upConfig n ≠ downConfig n :=
+  fun h => Spin.noConfusion (congrFun h ⟨0, hn⟩)
 
 /-- Magnetization of `upConfig` is `+n`. -/
-theorem Magnetization_upConfig (n : Nat) :
-    Magnetization (upConfig n) = (n : Int) := by
-  induction n with
-  | zero => rfl
-  | succ k ih =>
-    show spinValue Spin.up
-          + sumSpinValues k (fun _ : Fin k => Spin.up)
-        = ((k + 1 : Nat) : Int)
-    have h : sumSpinValues k (fun _ : Fin k => Spin.up) = (k : Int) := ih
-    rw [h]
-    show (1 : Int) + (k : Int) = ((k + 1 : Nat) : Int)
-    omega
+theorem Magnetization_upConfig : ∀ (n : Nat),
+    Magnetization (upConfig n) = (n : Int)
+  | 0 => rfl
+  | k + 1 =>
+    -- `M(up_{k+1}) = 1 + M(up_k) = 1 + k = (k+1)`.  Term-mode recursion;
+    -- the cast identity replaces the original `omega`.
+    (congrArg (1 + ·) (Magnetization_upConfig k)).trans
+      ((add_comm 1 (k : Int)).trans (Nat.cast_succ k).symm)
 
 /-- Magnetization of `downConfig` is `-n`, by Z₂ inversion. -/
 theorem Magnetization_downConfig (n : Nat) :
     Magnetization (downConfig n) = -(n : Int) := by
-  rw [← upConfig_flip, Magnetization_flip, Magnetization_upConfig]
+  kan_rw [<- upConfig_flip n, Magnetization_flip (upConfig n), Magnetization_upConfig n]
 
 /-! ## Bifurcation theorem (symbolic Z₂ degeneracy)
 
@@ -357,9 +358,9 @@ for symmetry-breaking. -/
 theorem schelling_ising_z2_degeneracy {n : Nat} (hn : 0 < n) :
     ∃ c₁ c₂ : SpinConfig n,
       c₁ ≠ c₂ ∧ Hamiltonian c₁ = Hamiltonian c₂ := by
-  refine ⟨upConfig n, downConfig n, ?_, ?_⟩
-  · exact upConfig_ne_downConfig hn
-  · rw [← upConfig_flip, Hamiltonian_flip]
+  kan_refine ⟨upConfig n, downConfig n, ?_, ?_⟩
+  · kan_exact upConfig_ne_downConfig hn
+  · kan_rw [<- upConfig_flip n, Hamiltonian_flip (upConfig n)]
 
 /-! ## Bifurcation theorem (analytic, real-valued)
 
@@ -388,9 +389,9 @@ The next two lemmas (`Real.tanh` strictly monotone, and
 `Real.tanh x < x` for `x > 0`) are required for the paramagnetic
 uniqueness proof but are not in Mathlib's `Real.tanh` API.  Both
 are derived from the `Real.sinh` / `Real.cosh` machinery via
-Mathlib tactics; this is a documented exception to the
-kan-tactics-only convention since the proofs are real-analytic
-identities for which kan-tactics has no equivalents. -/
+Mathlib tactics; they sit in the declared Mathlib real-analysis
+boundary (arithmetic decision procedures are not Kan extensions),
+not in the kan-tactics categorical span. -/
 
 /-- `Real.tanh` is strictly monotone.  Derived from
 `Real.sinh_sub` and `Real.sinh_pos_iff` via the identity

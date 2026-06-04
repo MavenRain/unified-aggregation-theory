@@ -17,9 +17,11 @@ statistical-mechanics-of-discrete-choice β-family is the parametrized
 linker that passes through all three regimes via two phase transitions.
 
 Built on [`comp-cat-theory`](../comp-cat-theory) for the categorical
-primitives (Category, Functor, NatTrans, LeftKanExtension) and
-[`arrow-cat`](../arrow-cat) for the Arrow-Impossibility regime
-(Geanakoplos pivotal-voter argument, complete with zero `sorry`s).
+primitives (Category, Functor, NatTrans, LeftKanExtension),
+[`kan-tactics`](../kan-tactics) for the proof tactics (every `by`
+block uses only kan-tactics), and [`arrow-cat`](../arrow-cat) for the
+Arrow-Impossibility regime (Geanakoplos pivotal-voter argument,
+complete with zero `sorry`s).
 
 > Mathlib is pulled for the analytic content (real numbers,
 > `Real.tanh`, real-analysis machinery used by the mean-field
@@ -231,12 +233,49 @@ UnifiedAggregation/
                                 AllocationCat, allocationAction)
 ```
 
-Every tactic block uses kan-tactics where feasible, with documented
-exceptions where standard tactics (`apply`, `cases`, `simp`, `rw`,
-`intro`, `let`) are required for HEq manipulation or rewrite chains
-that kan-tactics does not yet cover.  No `panic!`, `throw`, or
-`unreachable!` anywhere; `Option` and `Except` are used wherever a
-partial function or failable operation appears.
+Every tactic block uses **only** kan-tactics: there are no standard
+Mathlib tactics in any `by` block across the categorical,
+social-choice, and symbolic statistical-mechanics content.  Where a
+proof needs a step with no Kan-extension surface (classical case
+analysis, destructuring, structure-field substitution), it is written
+in **term mode** — which the convention permits — rather than reaching
+for a standard tactic.
+
+Closing this required adding two primitives upstream in
+[`kan-tactics`](../kan-tactics), the only genuine gaps this
+development surfaced:
+
+- **`kan_subst`** — the `substitution` Kan extension kind
+  (J / `Eq.rec`): eliminate a variable along an equation by
+  transporting the whole context and goal.  This is what `kan_rw`
+  (goal-only transport) structurally cannot do, and it is the
+  load-bearing step for the orbit-groupoid HEq congruence lemmas and
+  the pointwise functor extensionality.
+- **`kan_by_cases`** — derived coproduct elimination on
+  `Classical.em P`, composed from `kan_refine` + `kan_intro`.
+
+The in-house HEq stack in `UnifiedAggregation.HeqTransport` is itself
+kan-based: its congruence lemmas (`heq_comp`, `heq_functor_map`, the
+`idFunctor_*`/`compFunctor_*` families) are proved with `kan_subst`,
+and the single-shot `heq_*_uncast` macros expand to
+`kan_refine`/`kan_exact`.  (`heq_strip` is a small *elaborator*; like
+the kan-tactics primitives themselves it is implemented with Lean
+meta-programming, because its progress loop relies on `refine`'s
+strict failure on unsolvable placeholders — `kan_refine` collects
+those as subgoals instead.)
+
+The single principled boundary is the **mean-field bifurcation
+theorem** (the `Real.tanh` development in the second half of
+`Bridge.SchellingIsing`): it is proved against Mathlib's real-analysis
+library and uses Mathlib's arithmetic decision procedures (`ring`,
+`linarith`, `nlinarith`, `field_simp`, `positivity`).  This is a
+*declared dependency boundary* — arithmetic decision procedures are
+not Kan extensions and live in Mathlib — not a gap in kan-tactics'
+categorical span.
+
+No `panic!`, `throw`, or `unreachable!` anywhere; `Option` and
+`Except` are used wherever a partial function or failable operation
+appears.
 
 ## Building
 
@@ -244,6 +283,13 @@ partial function or failable operation appears.
 lake update
 lake build
 ```
+
+`kan-tactics` is a direct dependency (it carries the `kan_subst` /
+`kan_by_cases` primitives this development added).  While those
+primitives are unreleased, `lakefile.toml` pins `kan-tactics` to the
+sibling working copy via a local `path` require; once that change is
+pushed, switch the require back to a `git` dependency and re-run
+`lake update`.
 
 The repository is a reservoir library: downstream projects can depend
 on it via:

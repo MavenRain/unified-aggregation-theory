@@ -24,6 +24,7 @@
   `Functor` laws as Eq → HEq lifts via `heq_of_eq`.
 -/
 
+import KanTactics
 import UnifiedAggregation.ChoiceRule
 import UnifiedAggregation.HeqTransport
 import CompCatTheory.Primitive.KanExtension
@@ -86,19 +87,19 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
   -- the underlying Category and Functor laws (comp_id, id_comp,
   -- assoc, map_id, map_comp).
   comp_id := fun {_ Y} p => by
-    apply OrbitHom.ext
-    · exact G.mul_one p.g
-    · dsimp only []
+    kan_apply OrbitHom.ext
+    · kan_exact G.mul_one p.g
+    · kan_dsimp
       heq_strip
       -- Goal: HEq (p.f ≫ (act.act p.g).map (act.act_one.symm ▸ 𝟙 _)) p.f
       -- Strategy: bridge through `p.f ≫ 𝟙 _` (= p.f by Category.comp_id),
       -- showing the middle factor `(act.act p.g).map (cast 𝟙)` is HEq
       -- to `𝟙 ((act.act p.g).obj Y.val)`.
-      refine HEq.trans ?_ (heq_of_eq (Category.comp_id p.f))
-      refine heq_comp rfl
+      kan_refine HEq.trans ?_ (heq_of_eq (Category.comp_id p.f))
+      kan_refine heq_comp rfl
         (congrArg (act.act p.g).obj (idFunctor_obj_eq act.act_one Y.val))
         HEq.rfl ?_
-      refine HEq.trans
+      kan_refine HEq.trans
         (heq_functor_map rfl rfl
           (idFunctor_obj_eq act.act_one Y.val)
           (eqRec_heq_dep
@@ -106,14 +107,14 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
             act.act_one.symm (𝟙 Y.val)))
         (heq_of_eq ((act.act p.g).map_id Y.val))
   id_comp := fun {X _} p => by
-    apply OrbitHom.ext
-    · exact G.one_mul p.g
-    · dsimp only []
+    kan_apply OrbitHom.ext
+    · kan_exact G.one_mul p.g
+    · kan_dsimp
       heq_strip
       -- Goal: HEq ((act_one.symm ▸ 𝟙 X.val) ≫ (act.act G.one).map p.f) p.f
       -- Strategy: bridge through `𝟙 X.val ≫ p.f` (= p.f by Category.id_comp).
-      refine HEq.trans ?_ (heq_of_eq (Category.id_comp p.f))
-      refine heq_comp
+      kan_refine HEq.trans ?_ (heq_of_eq (Category.id_comp p.f))
+      kan_refine heq_comp
         (idFunctor_obj_eq act.act_one X.val)
         (idFunctor_obj_eq act.act_one _)
         (eqRec_heq_dep
@@ -121,9 +122,9 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
           act.act_one.symm (𝟙 X.val))
         (idFunctor_map_heq act.act_one p.f)
   assoc := fun {W X Y Z} p q r => by
-    apply OrbitHom.ext
-    · exact G.mul_assoc p.g q.g r.g
-    · dsimp only []
+    kan_apply OrbitHom.ext
+    · kan_exact G.mul_assoc p.g q.g r.g
+    · kan_dsimp
       heq_strip
       -- Goal: HEq ((cast₁ ▸ (p.f ≫ map q.f)) ≫ map_pq r.f)
       --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
@@ -134,7 +135,7 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
       -- Bridge through the canonical form
       --   p.f ≫ ((act p.g).map q.f ≫ (act p.g).map ((act q.g).map r.f))
       -- via Category.assoc on the LHS and Functor.map_comp on the RHS.
-      refine HEq.trans
+      kan_refine HEq.trans
         (heq_comp
           (compFunctor_obj_eq (act.act_mul p.g q.g) Y.val)
           (compFunctor_obj_eq (act.act_mul p.g q.g) ((act.act r.g).obj Z.val))
@@ -146,23 +147,23 @@ instance orbitGroupoidCategory {Obj : Type u} [Category.{u, u} Obj]
         ?_
       -- Goal: HEq ((p.f ≫ map q.f) ≫ (act p.g).map ((act q.g).map r.f))
       --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
-      refine HEq.trans
+      kan_refine HEq.trans
         (heq_of_eq (Category.assoc p.f
           ((act.act p.g).map q.f)
           ((act.act p.g).map ((act.act q.g).map r.f)))) ?_
       -- Goal: HEq (p.f ≫ ((act p.g).map q.f ≫ (act p.g).map ((act q.g).map r.f)))
       --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
-      refine HEq.trans
+      kan_refine HEq.trans
         (heq_of_eq (congrArg (p.f ≫ ·)
           ((act.act p.g).map_comp q.f ((act.act q.g).map r.f)).symm)) ?_
       -- Goal: HEq (p.f ≫ (act p.g).map (q.f ≫ (act q.g).map r.f))
       --           (p.f ≫ map (cast₂ ▸ (q.f ≫ map r.f)))
-      refine heq_comp rfl ?_ HEq.rfl ?_
+      kan_refine heq_comp rfl ?_ HEq.rfl ?_
       · -- hZ
-        exact congrArg (act.act p.g).obj
+        kan_exact congrArg (act.act p.g).obj
           (compFunctor_obj_eq (act.act_mul q.g r.g) Z.val).symm
       · -- hg : HEq (map X) (map (cast ▸ X))
-        exact (heq_functor_map rfl rfl
+        kan_exact (heq_functor_map rfl rfl
           (compFunctor_obj_eq (act.act_mul q.g r.g) Z.val)
           (eqRec_heq_dep
             (motive := fun F _ => Hom X.val (F.obj Z.val))
@@ -182,27 +183,27 @@ def orbitProjection {Obj : Type u} [Category.{u, u} Obj]
   map {_ _} f := { g := G.one, f := act.act_one.symm ▸ f }
   map_id _ := rfl
   map_comp {X Y Z} f g := by
-    apply OrbitHom.ext
-    · exact (G.one_mul G.one).symm
+    kan_apply OrbitHom.ext
+    · kan_exact (G.one_mul G.one).symm
     · -- `heq_strip` peels the outer `act.act_one` / `act.act_mul`
-      -- casts on each side.  The interleaved `dsimp only []`
+      -- casts on each side.  The interleaved `kan_dsimp`
       -- reduces structure-literal projections exposed by the
       -- composition unfold after the first pass.
-      dsimp only []
+      kan_dsimp
       heq_strip
-      dsimp only []
+      kan_dsimp
       heq_strip
       -- Residual: `HEq (f ≫ g) (cast_f ≫ (act.act G.one).map cast_g)`.
       -- Close via HEq congruence for `≫` plus the `idFunctor`
       -- collapse of `act.act G.one`.  Motive made explicit
       -- (Lean's higher-order inference for `▸` with
       -- `fun F => Hom X (F.obj Y)`-shaped motives is ambiguous).
-      refine heq_comp ?_ ?_ ?_ ?_
-      · exact (idFunctor_obj_eq act.act_one _).symm
-      · exact (idFunctor_obj_eq_twice act.act_one _).symm
-      · exact (eqRec_heq_dep (motive := fun F _ => Hom X (F.obj Y))
+      kan_refine heq_comp ?_ ?_ ?_ ?_
+      · kan_exact (idFunctor_obj_eq act.act_one _).symm
+      · kan_exact (idFunctor_obj_eq_twice act.act_one _).symm
+      · kan_exact (eqRec_heq_dep (motive := fun F _ => Hom X (F.obj Y))
           act.act_one.symm f).symm
-      · exact HEq.trans (eqRec_heq_dep
+      · kan_exact HEq.trans (eqRec_heq_dep
           (motive := fun F _ => Hom Y (F.obj Z))
           act.act_one.symm g).symm
           (idFunctor_map_heq act.act_one _).symm

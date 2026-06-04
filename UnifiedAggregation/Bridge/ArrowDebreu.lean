@@ -18,6 +18,7 @@
   load-bearing shadow of that result.
 -/
 
+import KanTactics
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.SymmetricGroup
 import UnifiedAggregation.FunctorExt
@@ -54,18 +55,20 @@ allocation to a single canonical form (the equal split). -/
 theorem Allocation.anonymous_eq_at_zero {m : Nat} (hm : 0 < m)
     (a : Allocation m) (h_anon : a.IsAnonymous) (i : Fin m) :
     a i = a ⟨0, hm⟩ := by
-  by_cases h_eq : i = ⟨0, hm⟩
-  · rw [h_eq]
-  · let σ : Perm m := {
-      toFun := swapMap ⟨0, hm⟩ i,
-      invFun := swapMap ⟨0, hm⟩ i,
-      left_inv := swapMap_involution ⟨0, hm⟩ i,
-      right_inv := swapMap_involution ⟨0, hm⟩ i }
-    have h_σ : σ.toFun ⟨0, hm⟩ = i := swapMap_at_a ⟨0, hm⟩ i
-    have h_anon_zero : a (σ.toFun ⟨0, hm⟩) = a ⟨0, hm⟩ :=
-      congrFun (h_anon σ) ⟨0, hm⟩
-    rw [h_σ] at h_anon_zero
-    exact h_anon_zero
+  kan_by_cases h_eq : i = ⟨0, hm⟩
+  · -- i = 0: substitute and close reflexively.
+    kan_subst h_eq
+    kan_rfl
+  · -- i ≠ 0: swap consumer 0 with i, apply anonymity at 0, then the
+    -- swap law `swapMap_at_a` rewrites `σ.toFun 0 = i` via term-mode `▸`
+    -- (kan_rw has no `at h`, so the hypothesis rewrite is term mode).
+    kan_exact
+      (swapMap_at_a ⟨0, hm⟩ i ▸
+        congrFun (h_anon
+          { toFun := swapMap ⟨0, hm⟩ i,
+            invFun := swapMap ⟨0, hm⟩ i,
+            left_inv := swapMap_involution ⟨0, hm⟩ i,
+            right_inv := swapMap_involution ⟨0, hm⟩ i }) ⟨0, hm⟩)
 
 /-- **Arrow-Debreu uniqueness (symbolic, headline)**: two anonymous
 allocations that agree at consumer 0 are equal everywhere.
@@ -80,10 +83,10 @@ theorem arrow_debreu_uniqueness {m : Nat} (hm : 0 < m)
     (a b : Allocation m)
     (ha : a.IsAnonymous) (hb : b.IsAnonymous)
     (h_zero : a ⟨0, hm⟩ = b ⟨0, hm⟩) :
-    a = b := by
-  funext i
-  rw [Allocation.anonymous_eq_at_zero hm a ha i,
-      Allocation.anonymous_eq_at_zero hm b hb i, h_zero]
+    a = b :=
+  funext fun i =>
+    (Allocation.anonymous_eq_at_zero hm a ha i).trans
+      (h_zero.trans (Allocation.anonymous_eq_at_zero hm b hb i).symm)
 
 /-! ## Categorical embedding
 
