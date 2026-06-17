@@ -44,6 +44,9 @@ import KanTactics
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.Z2Group
 import UnifiedAggregation.FunctorExt
+import UnifiedAggregation.Aggregation
+import UnifiedAggregation.Regimes
+import UnifiedAggregation.Indiscrete
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.DerivHyp
 import Mathlib.Analysis.Calculus.Deriv.MeanValue
@@ -672,5 +675,81 @@ theorem mean_field_bifurcation :
    fun β hβ =>
      let ⟨m₁, m₂, h_ne, _, _, h₁, h₂⟩ := bifurcation_ferromagnetic β hβ
      ⟨m₁, m₂, h_ne, h₁, h₂⟩⟩
+
+/-! ## Phase target and genuine regime witnesses (Phase 2)
+
+The Int-level degeneracy and the analytic bifurcation above are real, but
+live outside the categorical construction.  This section closes the gap:
+the order-parameter target is the indiscrete groupoid on the *mean-field
+fixed-point set*, so the cardinality of that set -- which
+`mean_field_bifurcation` computes -- controls object-uniqueness of the
+aggregation, hence the regime.  One phase (`m = 0`) for `β ≤ 1` gives the
+Arrow-Debreu regime; the symmetry-broken pair `±m_*` for `β > 1` gives
+the Schelling-Ising regime.  Both arise from the single `Aggregation`
+construction (left Kan extension along the orbit projection of the `Z₂`
+flip action) shared with the Arrow-Impossibility witness. -/
+
+/-- The **phase category** at inverse temperature `β`: the indiscrete
+groupoid on the set of mean-field fixed points.  Objects are the
+order-parameter values the system can settle into; the unique morphism
+between any two encodes their physical equivalence under the `Z₂` flip.
+The number of objects is the number of fixed points, which bifurcates at
+`β_c = 1`. -/
+abbrev MagPhase (β : ℝ) : Type :=
+  Indiscrete {m : ℝ // IsMeanFieldFixedPoint β m}
+
+/-- The symmetric (paramagnetic) reference phase `m = 0`: a fixed point
+at every `β` (`zero_is_fixed_point`). -/
+def zeroPhase (β : ℝ) : MagPhase β :=
+  Indiscrete.mk ⟨0, zero_is_fixed_point β⟩
+
+/-- The `Z₂`-symmetric choice rule sending every spin configuration to
+the reference phase.  Spontaneous symmetry breaking is the statement
+that, even though this rule is symmetric, its aggregation need not be
+object-unique above `β_c`. -/
+def magChoiceRule (n : Nat) (β : ℝ) : SpinConfigCat n ⥤ MagPhase β :=
+  constIndiscrete (zeroPhase β)
+
+/-- For `β ≤ 1` the phase category is a subsingleton: every fixed point
+is `m = 0` (`unique_fixed_point_paramagnetic`), so all objects of
+`MagPhase β` are equal. -/
+theorem magPhase_subsingleton {β : ℝ} (hβ : β ≤ 1) :
+    ∀ a b : MagPhase β, a = b :=
+  fun a b =>
+    congrArg Indiscrete.mk
+      (Subtype.ext
+        ((unique_fixed_point_paramagnetic β hβ a.val.val a.val.property).trans
+          (unique_fixed_point_paramagnetic β hβ b.val.val b.val.property).symm))
+
+/-- **Arrow-Debreu regime witness (paramagnetic phase, `β ≤ 1`).**  The
+aggregation of the symmetric choice rule exists and is object-unique,
+because the only fixed point is `m = 0`: the equilibrium order parameter
+is uniquely determined.  Same `Aggregation` construction as every other
+regime; the regime is forced by `unique_fixed_point_paramagnetic`. -/
+theorem paramagnetic_arrow_debreu_regime (n : Nat) {β : ℝ} (hβ : β ≤ 1) :
+    IsArrowDebreuRegime (spinConfigAction n) (magChoiceRule n β) :=
+  ⟨indiscreteLan (orbitProjection (spinConfigAction n)) (magChoiceRule n β)
+      (zeroPhase β),
+   fun _ _ => magPhase_subsingleton hβ _ _⟩
+
+/-- **Schelling-Ising regime witness (ferromagnetic phase, `β > 1`).**
+The aggregation of the *same* symmetric choice rule exists but is *not*
+object-unique: the symmetry-broken pair `±m_*` from
+`bifurcation_ferromagnetic` gives two distinct phases, hence two left
+Kan extensions whose object-assignments differ.  Spontaneous symmetry
+breaking realized as genuine non-uniqueness of the universal aggregate
+-- impossible over a discrete target (see
+`Characterization.not_schelling_ising_discrete`), which is exactly why
+the phase groupoid is needed. -/
+theorem schelling_ising_regime (n : Nat) {β : ℝ} (hβ : 1 < β) :
+    IsSchellingIsingRegime (spinConfigAction n) (magChoiceRule n β) :=
+  match bifurcation_ferromagnetic β hβ with
+  | ⟨m₁, m₂, hne, _, _, h₁, h₂⟩ =>
+    ⟨indiscreteLan (orbitProjection (spinConfigAction n)) (magChoiceRule n β)
+        (Indiscrete.mk ⟨m₁, h₁⟩),
+     indiscreteLan (orbitProjection (spinConfigAction n)) (magChoiceRule n β)
+        (Indiscrete.mk ⟨m₂, h₂⟩),
+     ⟨⟨upConfig n⟩⟩,
+     Indiscrete.mk_ne (fun h => hne (congrArg Subtype.val h))⟩
 
 end UnifiedAggregation.Bridge

@@ -53,6 +53,8 @@ import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Discrete
 import UnifiedAggregation.SymmetricGroup
 import UnifiedAggregation.FunctorExt
+import UnifiedAggregation.Regimes
+import UnifiedAggregation.Characterization
 
 set_option autoImplicit false
 
@@ -298,5 +300,41 @@ theorem no_equivariant_constrained_swf
       (fun heq => Nat.one_ne_zero (congrArg Fin.val heq).symm)
       (h_all ⟨0, Nat.lt_of_lt_of_le Nat.zero_lt_two h2⟩)
       (h_all ⟨1, h2⟩)
+
+/-! ## Genuine regime membership (Phase 2)
+
+The connection theorems above are restatements.  The theorem below is
+the *load-bearing* one: it discharges the framework's
+`IsArrowImpossibilityRegime` predicate for a Pareto+IIA social welfare
+function, exhibiting Arrow's classical result as genuine occupancy of
+one regime of the single `Aggregation` (left-Kan-extension) construction
+shared with the Arrow-Debreu and Schelling-Ising witnesses. -/
+
+/-- **Arrow-Impossibility regime witness.**  For `m ≥ 2` voters and
+three or more alternatives, every social welfare function satisfying
+Pareto and IIA sits in the Arrow-Impossibility regime: the left Kan
+extension of `SWFasChoiceRule f` along the orbit projection of the
+`S_m` action does *not* exist.
+
+Driven by Arrow's theorem, not by a tautology: Pareto + IIA force the
+SWF to be non-anonymous (`no_equivariant_constrained_swf`), and a
+choice rule that is not constant on orbits admits no aggregation
+(`lan_implies_orbit_constant`, contrapositive).  An assumed aggregation
+`L` makes `f` equivariant (its objects agree across the `S_m` orbit, so
+`f (σ · p) = f p` after stripping the `Discrete` wrapper), contradicting
+`no_equivariant_constrained_swf`. -/
+theorem arrow_impossibility_regime
+    {m : Nat} {α : Type} [DecidableEq α]
+    (h2 : 2 ≤ m) (h3 : AtLeastThree α) (hNE : Nonempty (Profile m α))
+    (f : SWF m α) (hP : SWF.Pareto f) (hI : SWF.IIA f) :
+    IsArrowImpossibilityRegime (profileAction m α) (SWFasChoiceRule f) :=
+  fun hAgg =>
+    hAgg.elim fun L =>
+      no_equivariant_constrained_swf h2 h3 hNE
+        ⟨f,
+         fun σ p =>
+           congrArg Discrete.val
+             (lan_implies_orbit_constant (SWFasChoiceRule f) L σ ⟨p⟩),
+         hP, hI⟩
 
 end UnifiedAggregation.Bridge

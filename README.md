@@ -1,195 +1,178 @@
 # unified-aggregation-theory
 
-A Lean 4 formalization of the **unification of three classical aggregation
-theorems** as regimes of a single categorical construction:
+A Lean 4 formalization exhibiting three classical aggregation phenomena
+as the three regimes of a **single** categorical construction: the
+**left Kan extension of a choice rule along the orbit projection** into
+the action groupoid of a symmetry group acting on a configuration
+category,
 
-- **Arrow-Debreu Equilibrium** (decentralized market aggregation under
-  convexity)
-- **Arrow's Impossibility Theorem** (Chichilnisky's topological
-  formulation; obstruction to democratic preference aggregation)
-- **Schelling segregation as Ising with ferromagnetic Hamiltonian**
-  (emergent community structure via spontaneous symmetry breaking)
+```
+Aggregation act F := LeftKanExtension (orbitProjection act) F.
+```
 
-The unifying mechanism is the **left Kan extension of a choice rule
-along the orbit projection** into the action groupoid of a symmetry
-group acting on the configuration category.  The Brock-Durlauf
-statistical-mechanics-of-discrete-choice β-family is the parametrized
-linker that passes through all three regimes via two phase transitions.
+The regime a problem occupies is determined by the existence and
+object-uniqueness of this Kan extension:
+
+- **Arrow-Impossibility** — *no* aggregation exists.  A Pareto + IIA
+  social welfare function (Arrow's theorem in Geanakoplos pivotal-voter
+  form, via [`arrow-cat`](../arrow-cat)) is forced to be non-anonymous,
+  and a choice rule that is not constant on orbits admits no left Kan
+  extension.
+- **Arrow-Debreu** — a *unique* aggregation exists.  Realized by the
+  mean-field choice rule below the critical temperature (`β ≤ 1`): a
+  single phase (`m = 0`), so the aggregate order parameter is uniquely
+  determined.
+- **Schelling-Ising** — an aggregation exists but is *not* object-unique.
+  Realized by the same choice rule above the critical temperature
+  (`β > 1`): the spontaneously symmetry-broken pair `±m_*`, so the
+  universal aggregate is pinned only up to the residual `Z₂` symmetry.
+
+The mean-field Brock-Durlauf β-family is the parametrized linker between
+the Arrow-Debreu and Schelling-Ising regimes: the cardinality of the
+mean-field fixed-point set (computed by `mean_field_bifurcation`) is the
+number of phases, which bifurcates from one to two at `β_c = 1`.
+
+## Scope, stated honestly
+
+This formalization makes a precise and limited claim, and it is worth
+being explicit about what is and is not proved:
+
+- The **construction is genuinely single**: all three regime witnesses
+  instantiate the *same* `Aggregation` definition, differing only in the
+  configuration category, the symmetry action, and the choice rule.
+- The **"Arrow-Debreu regime" is object-uniqueness of the aggregation
+  under symmetry**, not the Arrow-Debreu / Kakutani general-equilibrium
+  existence theorem (which is *not* formalized here).
+- The **Schelling-Ising regime is non-uniqueness at the level of object
+  equality.**  Into a *discrete* outcome category it cannot occur at all
+  (`Characterization.not_schelling_ising_discrete`: any two left Kan
+  extensions into a discrete category agree on objects).  This is exactly
+  why the order-parameter target is the *indiscrete phase groupoid* on
+  the mean-field fixed-point set: there distinct objects are isomorphic
+  yet unequal, so the symmetry-broken phases are genuinely distinct
+  realizations of the universal object.
+- The **`trichotomy` theorem itself is a classical case split** on
+  existence and object-uniqueness, hence exhaustive for any predicate.
+  Its content comes from the *inhabitation* theorem
+  `trichotomy_regimes_realized`, which shows each regime is occupied by a
+  real aggregation phenomenon, not from the case split alone.
 
 Built on [`comp-cat-theory`](../comp-cat-theory) for the categorical
 primitives (Category, Functor, NatTrans, LeftKanExtension),
-[`kan-tactics`](../kan-tactics) for the proof tactics (every `by`
-block uses only kan-tactics), and [`arrow-cat`](../arrow-cat) for the
-Arrow-Impossibility regime (Geanakoplos pivotal-voter argument,
-complete with zero `sorry`s).
+[`kan-tactics`](../kan-tactics) for the proof tactics (every `by` block
+uses only kan-tactics), and [`arrow-cat`](../arrow-cat) for the
+Arrow-Impossibility regime (Geanakoplos pivotal-voter argument, zero
+`sorry`s).
 
-> Mathlib is pulled for the analytic content (real numbers,
-> `Real.tanh`, real-analysis machinery used by the mean-field
-> bifurcation theorem).  All categorical, social-choice, and Int-level
-> statistical-mechanics primitives are drawn from the comp-cat-theory
-> reservoir and the arrow-cat extension.
+> Mathlib is pulled for the analytic content (real numbers, `Real.tanh`,
+> the real-analysis machinery behind the mean-field bifurcation).  All
+> categorical, social-choice, and Int-level statistical-mechanics
+> primitives come from the comp-cat-theory reservoir and arrow-cat.
 
 ## Status
 
-**Trichotomy theorem proved end to end** as of
-`v0.2.0-trichotomy-proved`: the unification headline is now formal.
-All three regimes of the trichotomy are inhabited by load-bearing
-witnesses, and the `trichotomy` theorem proves they are exhaustive:
-every `(act, F)` falls into Arrow-Debreu, Arrow-Impossibility, or
-Schelling-Ising.
+**Genuine trichotomy: exhaustive *and* inhabited.**  The `trichotomy`
+theorem proves the three regimes are jointly exhaustive (every `(act, F)`
+lands in some regime), and `trichotomy_regimes_realized` proves all three
+are genuinely inhabited — each by an actual aggregation phenomenon
+realized through the single `Aggregation` construction:
 
-- **Phase 1a** (as of `v0.1.0-phase-1a`): Arrow-Impossibility regime
-  via the `S_m` action on profiles; strong connection theorem
-  `no_equivariant_constrained_swf` proved.
-- **Phase 1b foundations** (as of `v0.1.1-phase-1b-foundations`):
-  Z2Group, Spin, SpinConfig, the Z₂ action on configurations, and
-  `spinConfigAction : GAction Z2Group (SpinConfigCat n)` all proved.
-- **Phase 1b symbolic bifurcation** (as of
-  `v0.1.2-phase-1b-bifurcation-symbolic`): magnetization + Hamiltonian
-  + Z₂ invariance laws + the headline `schelling_ising_z2_degeneracy`
-  theorem proved.
-- **Phase 2 + Trichotomy** (this release): symbolic Arrow-Debreu
-  uniqueness via the `S_m` action on allocations
-  (`arrow_debreu_uniqueness`); helper `aggregation_dichotomy` plus the
-  classical case analysis on existential structure of `Aggregation`
-  prove the headline `trichotomy` theorem.
+- Arrow-Impossibility: `Bridge.ArrowImpossibility.arrow_impossibility_regime`
+  (Pareto + IIA ⟹ no aggregation, via Arrow's theorem and
+  `Characterization.lan_implies_orbit_constant`).
+- Arrow-Debreu: `Bridge.SchellingIsing.paramagnetic_arrow_debreu_regime`
+  (`β ≤ 1`, unique phase ⟹ object-unique aggregation).
+- Schelling-Ising: `Bridge.SchellingIsing.schelling_ising_regime`
+  (`β > 1`, symmetry-broken pair ⟹ object-non-unique aggregation).
 
-**All four orbit-groupoid cast-tower HEqs in `Aggregation.lean`
-are now closed** (`orbitProjection.map_comp`, `comp_id`, `id_comp`,
-`assoc`), end-to-end through the in-house tactic stack in
-`UnifiedAggregation.HeqTransport`: `heq_strip` for outer-cast
-peeling, `heq_comp` / `heq_functor_map` for HEq congruence under
-`≫` and `Functor.map`, the `idFunctor`-collapse family
-(`idFunctor_map_heq`, `idFunctor_obj_eq[_twice]`) for `act_one`
-substitutions, and the `compFunctor` family
-(`compFunctor_obj_eq`, `compFunctor_map_heq`) for
-`act_mul`-driven functor-composition reductions, all bridged
-through underlying `Category.comp_id` / `id_comp` / `assoc` and
-`Functor.map_id` / `map_comp` Eq → HEq lifts via `heq_of_eq`.
+The discrete-target obstruction
+`Characterization.not_schelling_ising_discrete` is the *proved* reason
+the Schelling-Ising regime requires the indiscrete phase target.  The
+earlier discrete "shadow" results (`arrow_debreu_uniqueness`,
+`schelling_ising_z2_degeneracy`) are supporting lemmas about the
+configuration categories, not the regime witnesses.
 
-**The entire framework is now sorry-free.**  Both sides of the
-mean-field bifurcation theorem are formally proved:
+**The entire framework is sorry-free.**  Both sides of the mean-field
+bifurcation theorem are formally proved:
 
 - `unique_fixed_point_paramagnetic` (β ≤ 1 ⟹ m = 0 unique) follows
   from `Real.tanh_strictMono` (via the `sinh y · cosh x - sinh x ·
   cosh y = sinh(y − x)` identity) and `Real.tanh_lt_self_of_pos`
   (via `strictMonoOn_of_hasDerivWithinAt_pos` on
   `g(t) = t·cosh t − sinh t`).
-- `bifurcation_ferromagnetic` (β > 1 ⟹ symmetry-broken pair
-  exists) follows from `Real.hasDerivAt_tanh` (via the quotient
-  rule on `sinh/cosh` plus `cosh² − sinh² = 1`),
-  `Real.tanh_gt_self_sub_sq` (via `strictMonoOn` on
-  `g(t) = tanh t − t + t²` with `g'(t) = 2t − tanh²(t) > t(2 − t)
-  > 0` using `tanh²(t) < t²`), and `intermediate_value_Icc'`
-  applied to `f(m) = tanh(β·m) − m` on `[δ, 1]` with
-  `δ := (β−1)/β²`.  The symmetric fixed point follows from
+- `bifurcation_ferromagnetic` (β > 1 ⟹ symmetry-broken pair exists)
+  follows from `Real.hasDerivAt_tanh`, `Real.tanh_gt_self_sub_sq`, and
+  `intermediate_value_Icc'` applied to `f(m) = tanh(β·m) − m` on
+  `[δ, 1]` with `δ := (β−1)/β²`; the symmetric fixed point follows from
   `Real.tanh_neg`.
 
-The trichotomy proof, all three regime witnesses, the symbolic Z₂
-degeneracy theorem, the full orbit-groupoid category structure,
-and the analytic bifurcation are all sorry-free.
+All four orbit-groupoid cast-tower HEqs in `Aggregation.lean`
+(`orbitProjection.map_comp`, `comp_id`, `id_comp`, `assoc`) are closed
+through the in-house tactic stack in `UnifiedAggregation.HeqTransport`.
 
 ## Headline theorems
 
-### Phase 1a — Arrow-Impossibility regime
+### The single construction
+In `UnifiedAggregation.Aggregation`:
+
+- **`Aggregation act F := LeftKanExtension (orbitProjection act) F`** —
+  the one construction every regime instantiates.
+
+### Characterization (what makes the regimes meaningful)
+In `UnifiedAggregation.Characterization`:
+
+- **`not_schelling_ising_discrete`** (proved): into a discrete target the
+  Schelling-Ising regime is empty (left Kan extensions are object-unique
+  there).  This is the obstruction that forces the phase-groupoid target.
+- **`lan_implies_orbit_constant`** (proved): existence of an aggregation
+  over a discrete target forces the choice rule to be constant on orbits
+  (anonymity).  The bridge turning Arrow's theorem into impossibility-
+  regime membership.
+
+### Genuine regime realization
+In `UnifiedAggregation.TrichotomyWitnesses`:
+
+- **`trichotomy_regimes_realized`** (proved, headline): all three regimes
+  are inhabited by the single `Aggregation` construction.
+- **`dictator_pareto_iia`** (proved): a dictator is a Pareto + IIA SWF,
+  so the Arrow-Impossibility regime is non-vacuously occupied.
+
 In `UnifiedAggregation.Bridge.ArrowImpossibility`:
 
-- **`arrow_impossibility`** (proved): direct conjunctive restatement
-  of `ArrowCat.arrow_contrapositive` — no SWF over `0 < m` voters and
-  3+ alternatives satisfies Pareto, IIA, and non-dictatorship
-  simultaneously.
+- **`arrow_impossibility_regime`** (proved): for `m ≥ 2` voters and 3+
+  alternatives, every Pareto + IIA social welfare function occupies the
+  Arrow-Impossibility regime (its orbit-projection left Kan extension
+  does not exist).
 
-- **`equivariant_dictator_transfer`** (proved): under an anonymous
-  (`S_m`-equivariant) SWF, the dictator role transfers between any two
-  voters connected by a permutation.  Load-bearing lemma making the
-  framework's `GAction` structure non-decorative.
-
-- **`all_voters_dictator_under_equivariance`** (proved): combining
-  Arrow's theorem with transfer plus transitivity of `S_m`, every
-  voter is a dictator under equivariance.
-
-- **`no_two_dictators`** (proved): two distinct dictators are
-  contradictory; proof builds a disagreement profile using
-  `StrictPref.moveBToBottom`.
-
-- **`no_equivariant_constrained_swf`** (proved, headline): for
-  `m ≥ 2` voters, nonempty profiles, and 3+ alternatives, no SWF is
-  simultaneously `S_m`-equivariant and Pareto + IIA.
-
-### Phase 1b — Schelling-Ising regime
 In `UnifiedAggregation.Bridge.SchellingIsing`:
 
-- **`spinConfigAction`** (proved, no sorries): the `Z₂` action on
-  `SpinConfig n` lifted to a `GAction` on `SpinConfigCat n`.  Both
-  `act_one` and `act_mul` closed via `Functor.ext_pointwise`.
+- **`paramagnetic_arrow_debreu_regime`** (proved): for `β ≤ 1` the
+  mean-field choice rule occupies the Arrow-Debreu regime (object-unique
+  aggregation).
+- **`schelling_ising_regime`** (proved): for `β > 1` the same rule
+  occupies the Schelling-Ising regime (object-non-unique aggregation, the
+  symmetry-broken pair).
 
-- **`Magnetization_flip`** (proved): flipping all spins negates the
-  magnetization.  The Z₂ inversion law that makes `m = 0` the unique
-  symmetric fixed point.
+### Supporting results
+- **`no_equivariant_constrained_swf`** (`Bridge.ArrowImpossibility`):
+  for `m ≥ 2`, no SWF is simultaneously `S_m`-equivariant and Pareto +
+  IIA.  The social-choice engine behind `arrow_impossibility_regime`.
+- **`mean_field_bifurcation`** (`Bridge.SchellingIsing`): the
+  self-consistency equation `m = tanh(β·m)` has the unique solution
+  `m = 0` for `β ≤ 1` and a symmetry-broken pair for `β > 1`.  The
+  analytic engine behind the Arrow-Debreu and Schelling-Ising witnesses.
+- **`arrow_debreu_uniqueness`** (`Bridge.ArrowDebreu`),
+  **`schelling_ising_z2_degeneracy`** (`Bridge.SchellingIsing`): discrete
+  configuration-category facts (anonymous-allocation uniformity, Z₂
+  ground-state degeneracy) that motivate the regimes.
 
-- **`Hamiltonian_flip`** (proved): the mean-field ferromagnetic Ising
-  Hamiltonian is Z₂-invariant.  Forces any Hamiltonian-based choice
-  rule to inherit Z₂ symmetry.
-
-- **`schelling_ising_z2_degeneracy`** (proved, headline): for
-  `n ≥ 1`, the Hamiltonian admits at least two distinct configurations
-  with equal energy (witnessed by `upConfig n` and `downConfig n`).
-  The symbolic form of bifurcation: distinct attractors of the
-  Z₂-equivariant dynamics, signature of symmetry-broken phase pairing.
-
-### Phase 2 — Arrow-Debreu regime
-In `UnifiedAggregation.Bridge.ArrowDebreu`:
-
-- **`Allocation.anonymous_eq_at_zero`** (proved): under the `S_m`
-  symmetry, any anonymous (equivariant) allocation is uniform across
-  consumers.  Proof swaps consumer 0 with index `i` using arrow-cat's
-  `swapMap` and applies the anonymity hypothesis at index 0.
-
-- **`arrow_debreu_uniqueness`** (proved, headline): two anonymous
-  allocations agreeing at consumer 0 are equal everywhere.  The
-  symbolic form of "unique equilibrium under convex symmetric
-  preferences": the `S_m` structure forces a canonical equal-split
-  form, hence uniqueness.
-
-- **`allocationAction`** (proved): `GAction (SymmetricGroup m)
-  (AllocationCat m)` via the same `Functor.ext` recipe as
-  `profileAction`.
-
-### Trichotomy
+### Trichotomy (exhaustiveness)
 In `UnifiedAggregation.Trichotomy`:
 
-- **`trichotomy`** (proved, unification headline): every aggregation
-  problem `(act, F)` falls into one of `IsArrowDebreuRegime`,
-  `IsArrowImpossibilityRegime`, or `IsSchellingIsingRegime`.  Proof
-  is classical case analysis on the existential structure of
-  `Aggregation act F`: no Lan ⇒ Arrow-Impossibility; some Lan, all
-  agree ⇒ Arrow-Debreu; some Lan, two disagree ⇒ Schelling-Ising.
-
-## Phases
-
-- **Phase 0**: repo scaffold + type-level statement of the framework.
-  Complete.
-- **Phase 1a**: wire `arrow-cat` into the Arrow-Impossibility regime.
-  Complete.
-- **Phase 1b foundations**: Z₂ group, spin configurations, GAction.
-  Complete.
-- **Phase 1b symbolic bifurcation**: magnetization + Hamiltonian +
-  Z₂ degeneracy theorem.  Complete.
-- **Phase 2 (symbolic)**: Arrow-Debreu uniqueness via S_m anonymity.
-  Complete.
-- **Trichotomy**: the unification headline theorem.  Complete.
-- **Phase 1b analytic bifurcation** (in progress): Mathlib integrated;
-  real-valued statement `mean_field_bifurcation` in place;
-  `zero_is_fixed_point` proved.  Remaining: `tanh_strictMono` +
-  `tanh_lt_self` helper lemmas, then `unique_fixed_point_paramagnetic`
-  (uniqueness for `β ≤ 1`) and `bifurcation_ferromagnetic` (existence
-  of symmetric pair for `β > 1`, via IVT).
-- **Phase 2 (analytic)**: Arrow-Debreu existence via Kakutani fixed
-  point.  Mathlib pulled, infrastructure ready.
-- **Phase 1a follow-ups**: **Complete.**  All 4 cast-tower HEq
-  sorries closed (`orbitProjection.map_comp`, `comp_id`, `id_comp`,
-  `assoc` of `orbitGroupoidCategory`) via the full
-  `UnifiedAggregation.HeqTransport` stack.
+- **`trichotomy`** (proved): every aggregation problem `(act, F)` falls
+  into `IsArrowDebreuRegime`, `IsArrowImpossibilityRegime`, or
+  `IsSchellingIsingRegime`.  Classical case analysis on the existential
+  structure of `Aggregation act F`.
 
 ## Architecture
 
@@ -198,84 +181,48 @@ UnifiedAggregation/
   ConfigSpace.lean             SymmetryGroup, GAction on a category
   ChoiceRule.lean              Functor C ⥤ D, β-parameterized family
   Discrete.lean                Discrete category construction
+  Indiscrete.lean              Indiscrete (phase) groupoid: one morphism
+                               between any two objects; constIndiscrete;
+                               indiscreteLan (Lan into an indiscrete target)
   SymmetricGroup.lean          Perm n + group laws, SymmetricGroup n
   Z2Group.lean                 Z₂ + group laws, Z2Group : SymmetryGroup.{0}
-  FunctorExt.lean              Functor extensionality (Functor.ext and
-                               Functor.ext_pointwise, both term-mode)
-  HeqTransport.lean            HEq cast-stripping tactics (heq_strip
-                               and its component uncasts) for outer-layer
-                               casts in `▸` notation, including the
-                               dependent-motive form Lean produces under
-                               `Functor.obj`; HEq congruence lemmas for
-                               `≫` and `Functor.map`; `idFunctor`-
-                               collapse helpers (`idFunctor_map_heq`,
-                               `idFunctor_obj_eq[_twice]`); and
-                               `compFunctor` decomposition helpers
-                               (`compFunctor_obj_eq`,
-                               `compFunctor_map_heq`)
+  FunctorExt.lean              Functor extensionality (term-mode)
+  HeqTransport.lean            HEq cast-stripping tactics for the
+                               orbit-groupoid category laws
   Aggregation.lean             OrbitHom + OrbitGroupoid + orbitProjection
                                + Aggregation = LeftKanExtension along orbit proj
   Regimes.lean                 IsArrowDebreuRegime, IsArrowImpossibilityRegime,
                                IsSchellingIsingRegime
-  Trichotomy.lean              The unification theorem statement
+  Characterization.lean        lan_obj_unique_discrete /
+                               not_schelling_ising_discrete (the
+                               discrete-target obstruction) and
+                               lan_implies_orbit_constant (anonymity bridge)
+  Trichotomy.lean              The exhaustiveness theorem
+  TrichotomyWitnesses.lean     trichotomy_regimes_realized: all three
+                               regimes inhabited by the one construction
   Bridge/
-    ArrowImpossibility.lean    Phase 1a: arrow-cat <-> framework
-                               (ProfileCat, actByPerm, profileAction,
-                                SWFasChoiceRule, 5 headline theorems)
-    SchellingIsing.lean        Phase 1b: Z₂ regime
-                               (Spin, SpinConfig, configActByZ2,
-                                spinConfigAction, Magnetization,
-                                Hamiltonian, z2_degeneracy theorem)
-    ArrowDebreu.lean           Phase 2: Arrow-Debreu regime
-                               (Allocation, IsAnonymous,
-                                anonymous_eq_at_zero,
-                                arrow_debreu_uniqueness,
-                                AllocationCat, allocationAction)
+    ArrowImpossibility.lean    Arrow-cat <-> framework; profileAction,
+                               SWFasChoiceRule, no_equivariant_constrained_swf,
+                               arrow_impossibility_regime
+    SchellingIsing.lean        Z₂ regime; spinConfigAction, Magnetization,
+                               Hamiltonian, mean_field_bifurcation, MagPhase,
+                               paramagnetic_arrow_debreu_regime,
+                               schelling_ising_regime
+    ArrowDebreu.lean           Allocation, IsAnonymous, arrow_debreu_uniqueness,
+                               allocationAction (configuration-category facts)
 ```
 
-Every tactic block uses **only** kan-tactics: there are no standard
-Mathlib tactics in any `by` block across the categorical,
-social-choice, and symbolic statistical-mechanics content.  Where a
-proof needs a step with no Kan-extension surface (classical case
-analysis, destructuring, structure-field substitution), it is written
-in **term mode** — which the convention permits — rather than reaching
-for a standard tactic.
+Every tactic block uses **only** kan-tactics; steps with no
+Kan-extension surface (classical case analysis, destructuring, structure-
+field substitution) are written in **term mode**, which the convention
+permits.  The single principled boundary is the **mean-field bifurcation
+theorem** (the `Real.tanh` development in `Bridge.SchellingIsing`),
+proved against Mathlib's real-analysis library and its arithmetic
+decision procedures — a declared dependency boundary, not a gap in
+kan-tactics' categorical span.
 
-Closing this required adding two primitives upstream in
-[`kan-tactics`](../kan-tactics), the only genuine gaps this
-development surfaced:
-
-- **`kan_subst`** — the `substitution` Kan extension kind
-  (J / `Eq.rec`): eliminate a variable along an equation by
-  transporting the whole context and goal.  This is what `kan_rw`
-  (goal-only transport) structurally cannot do, and it is the
-  load-bearing step for the orbit-groupoid HEq congruence lemmas and
-  the pointwise functor extensionality.
-- **`kan_by_cases`** — derived coproduct elimination on
-  `Classical.em P`, composed from `kan_refine` + `kan_intro`.
-
-The in-house HEq stack in `UnifiedAggregation.HeqTransport` is itself
-kan-based: its congruence lemmas (`heq_comp`, `heq_functor_map`, the
-`idFunctor_*`/`compFunctor_*` families) are proved with `kan_subst`,
-and the single-shot `heq_*_uncast` macros expand to
-`kan_refine`/`kan_exact`.  (`heq_strip` is a small *elaborator*; like
-the kan-tactics primitives themselves it is implemented with Lean
-meta-programming, because its progress loop relies on `refine`'s
-strict failure on unsolvable placeholders — `kan_refine` collects
-those as subgoals instead.)
-
-The single principled boundary is the **mean-field bifurcation
-theorem** (the `Real.tanh` development in the second half of
-`Bridge.SchellingIsing`): it is proved against Mathlib's real-analysis
-library and uses Mathlib's arithmetic decision procedures (`ring`,
-`linarith`, `nlinarith`, `field_simp`, `positivity`).  This is a
-*declared dependency boundary* — arithmetic decision procedures are
-not Kan extensions and live in Mathlib — not a gap in kan-tactics'
-categorical span.
-
-No `panic!`, `throw`, or `unreachable!` anywhere; `Option` and
-`Except` are used wherever a partial function or failable operation
-appears.
+No `panic!`, `throw`, or `unreachable!` anywhere; `Option` and `Except`
+are used wherever a partial function or failable operation appears.
 
 ## Building
 
@@ -284,45 +231,25 @@ lake update
 lake build
 ```
 
-`kan-tactics` is a direct dependency (it carries the `kan_subst` /
-`kan_by_cases` primitives this development added).  While those
-primitives are unreleased, `lakefile.toml` pins `kan-tactics` to the
-sibling working copy via a local `path` require; once that change is
-pushed, switch the require back to a `git` dependency and re-run
-`lake update`.
-
-The repository is a reservoir library: downstream projects can depend
-on it via:
+The repository is a reservoir library: downstream projects can depend on
+it via:
 
 ```toml
 [[require]]
 name = "unified-aggregation-theory"
-path = "../unified-aggregation-theory"
+git = "https://github.com/MavenRain/unified-aggregation-theory.git"
+rev = "main"
 ```
-
-or as a git dependency once published.
 
 ## Documentation
 
 API documentation is auto-generated via
-[`doc-gen4`](https://github.com/leanprover/doc-gen4) and published to
-GitHub Pages on every push to `main` (workflow at
-`.github/workflows/docs.yml`).  Once the repository is hosted on
-GitHub, docs will be available at
-`https://MavenRain.github.io/unified-aggregation-theory/`.
-
-Local doc build:
+[`doc-gen4`](https://github.com/leanprover/doc-gen4).  Local doc build:
 
 ```sh
 lake build UnifiedAggregation:docs
 # Output: .lake/build/doc/index.html
 ```
-
-Note: local doc builds require a configured git remote so that
-`doc-gen4` can generate source-line links.  On a freshly-init'd repo
-without a remote, the doc build will fail at the final source-URI
-step; this is expected and will succeed in CI once the repo is
-pushed to GitHub.
 
 ## License
 

@@ -9,6 +9,9 @@ import UnifiedAggregation.SymmetricGroup
 import UnifiedAggregation.Z2Group
 import UnifiedAggregation.ChoiceRule
 import UnifiedAggregation.Aggregation
+import UnifiedAggregation.Indiscrete
 import UnifiedAggregation.Regimes
+import UnifiedAggregation.Characterization
 import UnifiedAggregation.Trichotomy
 import UnifiedAggregation.Bridge
+import UnifiedAggregation.TrichotomyWitnesses
