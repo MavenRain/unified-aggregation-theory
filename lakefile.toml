@@ -25,12 +25,16 @@ name = "arrow-cat"
 git = "https://github.com/MavenRain/arrow-cat.git"
 rev = "main"
 
+# Mathlib-free ordered-field (ℚ) decision procedure `kan_saturate`, used by the
+# Schelling-Ising mean-field bifurcation (rational algebraic-sigmoid model).
+# Declared after comp-cat-theory / kan-tactics so this root's `main` pins win the
+# shared-dependency diamond.
+[[require]]
+name = "kan-saturation"
+git = "https://github.com/MavenRain/kan-saturation.git"
+rev = "main"
+
 [[require]]
 name = "doc-gen4"
 git = "https://github.com/leanprover/doc-gen4"
 rev = "main"
-
-[[require]]
-name = "mathlib"
-git = "https://github.com/leanprover-community/mathlib4"
-rev = "master"

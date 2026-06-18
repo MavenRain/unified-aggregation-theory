@@ -66,9 +66,9 @@ theorem trichotomy_regimes_realized :
     (∀ (m : Nat) (α : Type) [DecidableEq α], 2 ≤ m → AtLeastThree α →
         Nonempty (Profile m α) → ∀ f : SWF m α, SWF.Pareto f → SWF.IIA f →
         IsArrowImpossibilityRegime (profileAction m α) (SWFasChoiceRule f)) ∧
-    (∀ (n : Nat) (β : ℝ), β ≤ 1 →
+    (∀ (n : Nat) (β : Rat), β ≤ 1 →
         IsArrowDebreuRegime (spinConfigAction n) (magChoiceRule n β)) ∧
-    (∀ (n : Nat) (β : ℝ), 1 < β →
+    (∀ (n : Nat) (β : Rat), 1 < β →
         IsSchellingIsingRegime (spinConfigAction n) (magChoiceRule n β)) :=
   ⟨fun _ _ _ h2 h3 hNE f hP hI => arrow_impossibility_regime h2 h3 hNE f hP hI,
    fun n _ hβ => paramagnetic_arrow_debreu_regime n hβ,

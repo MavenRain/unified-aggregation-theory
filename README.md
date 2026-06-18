@@ -60,14 +60,18 @@ being explicit about what is and is not proved:
 Built on [`comp-cat-theory`](../comp-cat-theory) for the categorical
 primitives (Category, Functor, NatTrans, LeftKanExtension),
 [`kan-tactics`](../kan-tactics) for the proof tactics (every `by` block
-uses only kan-tactics), and [`arrow-cat`](../arrow-cat) for the
+uses only kan-tactics), [`arrow-cat`](../arrow-cat) for the
 Arrow-Impossibility regime (Geanakoplos pivotal-voter argument, zero
-`sorry`s).
+`sorry`s), and [`kan-saturation`](../kan-saturation) for the Mathlib-free
+ordered-field decision procedure `kan_saturate` (the `linarith`-over-`Rat`
+leg) used by the rational mean-field bifurcation.
 
-> Mathlib is pulled for the analytic content (real numbers, `Real.tanh`,
-> the real-analysis machinery behind the mean-field bifurcation).  All
-> categorical, social-choice, and Int-level statistical-mechanics
-> primitives come from the comp-cat-theory reservoir and arrow-cat.
+> **Mathlib-free.**  The mean-field bifurcation was ported off `Real.tanh`
+> to the rational algebraic sigmoid `r(x) = x/(1+|x|)` over `Rat`, so the
+> entire project now builds with **no Mathlib dependency** — only
+> comp-cat-theory, kan-tactics, arrow-cat, and kan-saturation, all
+> Mathlib-free.  The analytic content uses core `Rat` field lemmas plus
+> `kan_saturate` for the linear-arithmetic steps.
 
 ## Status
 
@@ -92,19 +96,18 @@ earlier discrete "shadow" results (`arrow_debreu_uniqueness`,
 `schelling_ising_z2_degeneracy`) are supporting lemmas about the
 configuration categories, not the regime witnesses.
 
-**The entire framework is sorry-free.**  Both sides of the mean-field
-bifurcation theorem are formally proved:
+**The entire framework is sorry-free and Mathlib-free.**  Both sides of
+the rational mean-field bifurcation theorem are formally proved over
+`Rat`:
 
-- `unique_fixed_point_paramagnetic` (β ≤ 1 ⟹ m = 0 unique) follows
-  from `Real.tanh_strictMono` (via the `sinh y · cosh x - sinh x ·
-  cosh y = sinh(y − x)` identity) and `Real.tanh_lt_self_of_pos`
-  (via `strictMonoOn_of_hasDerivWithinAt_pos` on
-  `g(t) = t·cosh t − sinh t`).
-- `bifurcation_ferromagnetic` (β > 1 ⟹ symmetry-broken pair exists)
-  follows from `Real.hasDerivAt_tanh`, `Real.tanh_gt_self_sub_sq`, and
-  `intermediate_value_Icc'` applied to `f(m) = tanh(β·m) − m` on
-  `[δ, 1]` with `δ := (β−1)/β²`; the symmetric fixed point follows from
-  `Real.tanh_neg`.
+- `unique_fixed_point_paramagnetic` (β ≤ 1 ⟹ m = 0 unique): for `m ≠ 0`,
+  cancel `m` from `m·(1+|β·m|) = m·β` (a `mul_left_cancel₀` built
+  Mathlib-free from `Rat.inv_mul_cancel`) to get `1 + |β·m| = β`; with
+  `|β·m| ≥ 0` and `β ≤ 1` this forces `|β·m| = 0` and `β = 1`, hence
+  `m = β·m = 0`.  The linear steps are `kan_saturate`.
+- `bifurcation_ferromagnetic` (β > 1 ⟹ symmetry-broken pair exists):
+  exhibits `±(β-1)/β`, verified by clearing `β` via `Rat.inv_mul_cancel`,
+  with `|β-1| = β-1` since `β > 1`; the negative phase follows by oddness.
 
 All four orbit-groupoid cast-tower HEqs in `Aggregation.lean`
 (`orbitProjection.map_comp`, `comp_id`, `id_comp`, `assoc`) are closed
@@ -157,10 +160,11 @@ In `UnifiedAggregation.Bridge.SchellingIsing`:
 - **`no_equivariant_constrained_swf`** (`Bridge.ArrowImpossibility`):
   for `m ≥ 2`, no SWF is simultaneously `S_m`-equivariant and Pareto +
   IIA.  The social-choice engine behind `arrow_impossibility_regime`.
-- **`mean_field_bifurcation`** (`Bridge.SchellingIsing`): the
-  self-consistency equation `m = tanh(β·m)` has the unique solution
-  `m = 0` for `β ≤ 1` and a symmetry-broken pair for `β > 1`.  The
-  analytic engine behind the Arrow-Debreu and Schelling-Ising witnesses.
+- **`mean_field_bifurcation`** (`Bridge.SchellingIsing`): the rational
+  self-consistency `m = β·m/(1+|β·m|)` has the unique solution `m = 0`
+  for `β ≤ 1` and the symmetry-broken pair `±(β-1)/β` for `β > 1`.  The
+  Mathlib-free analytic engine behind the Arrow-Debreu and Schelling-Ising
+  witnesses.
 - **`arrow_debreu_uniqueness`** (`Bridge.ArrowDebreu`),
   **`schelling_ising_z2_degeneracy`** (`Bridge.SchellingIsing`): discrete
   configuration-category facts (anonymous-allocation uniformity, Z₂
@@ -212,14 +216,15 @@ UnifiedAggregation/
                                allocationAction (configuration-category facts)
 ```
 
-Every tactic block uses **only** kan-tactics; steps with no
-Kan-extension surface (classical case analysis, destructuring, structure-
-field substitution) are written in **term mode**, which the convention
-permits.  The single principled boundary is the **mean-field bifurcation
-theorem** (the `Real.tanh` development in `Bridge.SchellingIsing`),
-proved against Mathlib's real-analysis library and its arithmetic
-decision procedures — a declared dependency boundary, not a gap in
-kan-tactics' categorical span.
+Every tactic block uses **only** kan-tactics (including `kan_saturate`,
+the Mathlib-free ordered-field decision procedure from `kan-saturation`);
+steps with no Kan-extension surface (classical case analysis,
+destructuring, structure-field substitution) are written in **term
+mode**, which the convention permits.  The mean-field bifurcation, once a
+`Real.tanh` development against Mathlib, is now the rational
+algebraic-sigmoid model over `Rat`, discharged by core `Rat` field lemmas
+plus `kan_saturate` — so there is **no Mathlib dependency** anywhere in
+the project.
 
 No `panic!`, `throw`, or `unreachable!` anywhere; `Option` and `Except`
 are used wherever a partial function or failable operation appears.

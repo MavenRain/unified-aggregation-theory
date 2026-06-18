@@ -26,18 +26,22 @@
   - `schelling_ising_z2_degeneracy`: for `n ≥ 1` the Hamiltonian
     admits at least two distinct configurations with equal energy
 
-  Analytic bifurcation theorem (Real-level, via Mathlib):
-  - `IsMeanFieldFixedPoint β m := m = Real.tanh (β * m)`
+  Analytic bifurcation theorem (rational-valued, Mathlib-free):
+  - `IsMeanFieldFixedPoint β m := m * (1 + |β·m|) = β·m`  (the
+    denominator-cleared rational algebraic sigmoid `r(x) = x/(1+|x|)`,
+    in place of `Real.tanh`; same pitchfork, rational fixed points)
   - `unique_fixed_point_paramagnetic` (`β ≤ 1`: only `m = 0`)
-  - `bifurcation_ferromagnetic` (`β > 1`: a symmetry-broken pair)
+  - `bifurcation_ferromagnetic` (`β > 1`: the pair `±(β-1)/β`)
   - `mean_field_bifurcation` packaging both ends
 
-  All theorems are sorry-free.  The symbolic (categorical / Int-level)
-  half above uses only kan-tactics and term mode.  The analytic half
-  below is proved against Mathlib's real-analysis library and uses its
-  arithmetic decision procedures (`ring`, `linarith`, `nlinarith`,
-  `field_simp`, `positivity`) — a declared Mathlib dependency
-  boundary, not a gap in the kan-tactics span.
+  All theorems are sorry-free, and the whole module is **Mathlib-free**:
+  the symbolic (Int-level) half uses kan-tactics + term mode; the analytic
+  half uses core `Rat` field lemmas (term mode) and `kan_saturate` (the
+  Mathlib-free ordered-field / `linarith`-over-`Rat` leg of
+  `kan-saturation`) for the linear-arithmetic steps.  Arithmetic facts
+  that depend on a hypothesis are factored into small parameterized helper
+  lemmas, because `kan_saturate` reads only lambda/parameter-bound
+  hypotheses (not ones introduced by `kan_by_cases`).
 -/
 
 import KanTactics
@@ -47,15 +51,18 @@ import UnifiedAggregation.FunctorExt
 import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Regimes
 import UnifiedAggregation.Indiscrete
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.DerivHyp
-import Mathlib.Analysis.Calculus.Deriv.MeanValue
+import KanSaturation
 
 set_option autoImplicit false
 
 namespace UnifiedAggregation.Bridge
 
 open CompCatTheory
+
+/-- Mathlib-free `congrArg₂` (the generic one lives in Mathlib). -/
+private theorem congrArg₂ {α β γ : Sort _} (f : α → β → γ) {a₁ a₂ : α} {b₁ b₂ : β}
+    (h₁ : a₁ = a₂) (h₂ : b₁ = b₂) : f a₁ b₁ = f a₂ b₂ :=
+  (congrArg (f a₁) h₂).trans (congrArg (f · b₂) h₁)
 
 /-! ## Spins and the Z₂ flip -/
 
@@ -252,7 +259,7 @@ Term-mode structural recursion on `n`: the last-index spin's flip
 negates its signed value (`spinValue_flip`); the tail-restriction's
 flip is the `SpinConfig.flip` of the restriction (definitional, so the
 recursive call applies directly).  `congrArg₂ (·+·)` combines the two,
-and `(neg_add _ _).symm` folds `-a + -b` back into `-(a + b)`. -/
+and `Int.neg_add.symm` folds `-a + -b` back into `-(a + b)`. -/
 theorem Magnetization_flip : ∀ {n : Nat} (c : SpinConfig n),
     Magnetization c.flip = -Magnetization c
   | 0, _ => rfl
@@ -262,7 +269,7 @@ theorem Magnetization_flip : ∀ {n : Nat} (c : SpinConfig n),
     -- two negations back into one.  Pure term-mode structural recursion.
     (congrArg₂ (· + ·) (spinValue_flip (c (Fin.last k)))
         (Magnetization_flip (fun i => c (Fin.castSucc i)))).trans
-      (neg_add _ _).symm
+      Int.neg_add.symm
 
 /-! ## Hamiltonian (mean-field, integer-valued) -/
 
@@ -296,7 +303,7 @@ theorem Hamiltonian_flip {n : Nat} (c : SpinConfig n) :
   -- so the energy is invariant.  Term mode (`unfold` would force the
   -- `Magnetization` defn open, which `kan_dsimp` cannot scope).
   (congrArg (fun z => -(z * z)) (Magnetization_flip c)).trans
-    (congrArg Neg.neg (neg_mul_neg (Magnetization c) (Magnetization c)))
+    (congrArg Neg.neg (Int.neg_mul_neg (Magnetization c) (Magnetization c)))
 
 /-! ## Ground states: upConfig and downConfig -/
 
@@ -327,7 +334,7 @@ theorem Magnetization_upConfig : ∀ (n : Nat),
     -- `M(up_{k+1}) = 1 + M(up_k) = 1 + k = (k+1)`.  Term-mode recursion;
     -- the cast identity replaces the original `omega`.
     (congrArg (1 + ·) (Magnetization_upConfig k)).trans
-      ((add_comm 1 (k : Int)).trans (Nat.cast_succ k).symm)
+      ((Int.add_comm 1 (k : Int)).trans (Int.natCast_succ k).symm)
 
 /-- Magnetization of `downConfig` is `-n`, by Z₂ inversion. -/
 theorem Magnetization_downConfig (n : Nat) :
@@ -365,316 +372,125 @@ theorem schelling_ising_z2_degeneracy {n : Nat} (hn : 0 < n) :
   · kan_exact upConfig_ne_downConfig hn
   · kan_rw [<- upConfig_flip n, Hamiltonian_flip (upConfig n)]
 
-/-! ## Bifurcation theorem (analytic, real-valued)
+/-! ## Bifurcation theorem (analytic, rational-valued)
 
-The classical mean-field bifurcation of the ferromagnetic Ising
-model: the self-consistency equation `m = tanh(β · m)` has a single
-fixed point `m = 0` for `β ≤ 1` (paramagnetic phase) and multiple
-fixed points for `β > 1` (ferromagnetic phase with `Z₂`-broken
-attractor pair `±m_*(β)` plus the unstable `m = 0`).
+Mathlib-free replacement for the `Real.tanh` development.  The mean-field
+self-consistency uses the rational algebraic sigmoid `r(x) = x / (1 + |x|)`
+in place of `tanh`: the same odd, slope-`β`-at-`0`, saturating shape, but
+with the symmetry-broken fixed points `±(β-1)/β` *rational*, so the entire
+development lives in `Rat`.  Each obligation is discharged by core `Rat`
+field lemmas (term mode) or the Mathlib-free `kan_saturate` (ordered-field
+leg).  Arithmetic facts depending on a hypothesis are factored into small
+parameterized helper lemmas, since `kan_saturate` reads only
+lambda/parameter-bound hypotheses, not ones introduced by `kan_by_cases`. -/
 
-We use Mathlib's `Real.tanh` and standard real-analysis machinery. -/
 
-/-- The mean-field self-consistency condition: `m` is a fixed point
-of the magnetization equation `m = tanh(β · m)` (with coupling
-`J = 1` so the critical inverse temperature is `β_c = 1`). -/
-def IsMeanFieldFixedPoint (β m : ℝ) : Prop :=
-  m = Real.tanh (β * m)
+private theorem rat_neg_nonneg {q : Rat} (h : q < 0) : (0:Rat) ≤ -q := by kan_saturate
+private theorem rat_negneg (q : Rat) : - -q = q := by kan_saturate
+private theorem rat_eq_both_nonneg {q : Rat} (h1 : 0 ≤ q) (h2 : 0 ≤ -q) : -q = q := by kan_saturate
+private theorem rat_sub_one_nonneg {β : Rat} (h : 1 < β) : (0:Rat) ≤ β - 1 := by kan_saturate
+private theorem rat_one_add_sub_one (β : Rat) : (1:Rat) + (β - 1) = β := by kan_saturate
+private theorem rat_pos_ne_zero {β : Rat} (h : 1 < β) : β ≠ 0 := fun h0 => by kan_saturate
+private theorem rat_sub_one_ne {β : Rat} (h : 1 < β) : β - 1 ≠ 0 := fun hz => by kan_saturate
+private theorem rat_paramag_zero {R β : Rat} (hc : 1 + R = β) (hn : 0 ≤ R) (hb : β ≤ 1) : R = 0 := by kan_saturate
+private theorem rat_beta_eq_one {R β : Rat} (hc : 1 + R = β) (h0 : R = 0) : β = 1 := by kan_saturate
+private theorem rat_neg_eq_zero {x : Rat} (h : -x = 0) : x = 0 := by kan_saturate
+private theorem rat_neg_ne {x : Rat} (h : x ≠ 0) : -x ≠ 0 := fun h0 => h (rat_neg_eq_zero h0)
+private theorem rat_ne_neg_self {x : Rat} (h : x ≠ 0) : x ≠ -x := fun he => h (by kan_saturate)
 
-/-- Zero is always a mean-field fixed point: `0 = tanh(0)`. -/
-theorem zero_is_fixed_point (β : ℝ) : IsMeanFieldFixedPoint β 0 := by
-  unfold IsMeanFieldFixedPoint
-  simp [Real.tanh_zero]
+def ratAbs (q : Rat) : Rat := if q < 0 then -q else q
+theorem ratAbs_of_neg {q : Rat} (h : q < 0) : ratAbs q = -q := if_pos h
+theorem ratAbs_of_nonneg {q : Rat} (h : 0 ≤ q) : ratAbs q = q := if_neg (Rat.not_lt.mpr h)
 
-/-! ### Analytic helpers
+theorem ratAbs_nonneg (q : Rat) : 0 ≤ ratAbs q := by
+  kan_by_cases h : q < 0
+  · kan_rw [ratAbs_of_neg h]; kan_exact rat_neg_nonneg h
+  · kan_rw [ratAbs_of_nonneg (Rat.not_lt.mp h)]; kan_exact Rat.not_lt.mp h
 
-The next two lemmas (`Real.tanh` strictly monotone, and
-`Real.tanh x < x` for `x > 0`) are required for the paramagnetic
-uniqueness proof but are not in Mathlib's `Real.tanh` API.  Both
-are derived from the `Real.sinh` / `Real.cosh` machinery via
-Mathlib tactics; they sit in the declared Mathlib real-analysis
-boundary (arithmetic decision procedures are not Kan extensions),
-not in the kan-tactics categorical span. -/
+theorem ratAbs_neg (q : Rat) : ratAbs (-q) = ratAbs q := by
+  kan_by_cases h : q < 0
+  · kan_rw [ratAbs_of_nonneg (rat_neg_nonneg h), ratAbs_of_neg h]
+  · kan_by_cases h2 : -q < 0
+    · kan_rw [ratAbs_of_neg h2, ratAbs_of_nonneg (Rat.not_lt.mp h)]
+      kan_exact rat_negneg q
+    · kan_rw [ratAbs_of_nonneg (Rat.not_lt.mp h2), ratAbs_of_nonneg (Rat.not_lt.mp h)]
+      kan_exact rat_eq_both_nonneg (Rat.not_lt.mp h) (Rat.not_lt.mp h2)
 
-/-- `Real.tanh` is strictly monotone.  Derived from
-`Real.sinh_sub` and `Real.sinh_pos_iff` via the identity
-`sinh y · cosh x - sinh x · cosh y = sinh(y - x)`. -/
-theorem Real.tanh_strictMono : StrictMono Real.tanh := by
-  intro x y hxy
-  rw [Real.tanh_eq_sinh_div_cosh, Real.tanh_eq_sinh_div_cosh,
-      div_lt_div_iff₀ (Real.cosh_pos x) (Real.cosh_pos y)]
-  have h_sub : Real.sinh y * Real.cosh x - Real.sinh x * Real.cosh y
-      = Real.sinh (y - x) := by
-    rw [Real.sinh_sub]; ring
-  have h_sinh_pos : 0 < Real.sinh (y - x) :=
-    Real.sinh_pos_iff.mpr (sub_pos.mpr hxy)
-  linarith
+theorem ratAbs_eq_zero {q : Rat} (h : ratAbs q = 0) : q = 0 := by
+  kan_by_cases hq : q < 0
+  · kan_exact rat_neg_eq_zero ((ratAbs_of_neg hq).symm.trans h)
+  · kan_exact (ratAbs_of_nonneg (Rat.not_lt.mp hq)).symm.trans h
 
-/-- For `x > 0`, `Real.tanh x < x`.  Proof: consider
-`g(t) = t · cosh t - sinh t`.  Then `g(0) = 0` and
-`g'(t) = t · sinh t > 0` for `t > 0`, so `g(x) > 0` for `x > 0`,
-i.e., `sinh x < x · cosh x`, i.e., `tanh x < x`. -/
-theorem Real.tanh_lt_self_of_pos {x : ℝ} (hx : 0 < x) :
-    Real.tanh x < x := by
-  suffices h : Real.sinh x < x * Real.cosh x by
-    rw [Real.tanh_eq_sinh_div_cosh, div_lt_iff₀ (Real.cosh_pos x)]
-    exact h
-  -- g(t) = t · cosh t - sinh t.  g(0) = 0, g'(t) = t · sinh t > 0 for t > 0.
-  have h_deriv : ∀ t, HasDerivAt (fun s => s * Real.cosh s - Real.sinh s)
-                                  (t * Real.sinh t) t := by
-    intro t
-    have h₁ : HasDerivAt (fun s => s * Real.cosh s)
-                          (1 * Real.cosh t + t * Real.sinh t) t :=
-      (hasDerivAt_id t).mul (Real.hasDerivAt_cosh t)
-    have h₂ : HasDerivAt Real.sinh (Real.cosh t) t := Real.hasDerivAt_sinh t
-    convert h₁.sub h₂ using 1
-    ring
-  have h_mono : StrictMonoOn (fun s => s * Real.cosh s - Real.sinh s)
-                              (Set.Ici 0) :=
-    strictMonoOn_of_hasDerivWithinAt_pos (convex_Ici 0)
-      (fun t _ => (h_deriv t).continuousAt.continuousWithinAt)
-      (fun t _ => (h_deriv t).hasDerivWithinAt)
-      (fun t ht => by
-        have ht_pos : 0 < t := by
-          simp only [interior_Ici, Set.mem_Ioi] at ht; exact ht
-        exact mul_pos ht_pos (Real.sinh_pos_iff.mpr ht_pos))
-  have h_zero : (fun s => s * Real.cosh s - Real.sinh s) 0 = 0 := by
-    simp [Real.cosh_zero, Real.sinh_zero]
-  have h_gt : 0 < x * Real.cosh x - Real.sinh x := by
-    have := h_mono (Set.self_mem_Ici) (Set.mem_Ici.mpr hx.le) hx
-    rw [h_zero] at this
-    exact this
-  linarith
+theorem ratMulLeftCancel {a b c : Rat} (ha : a ≠ 0) (h : a * b = a * c) : b = c :=
+  have e : a⁻¹ * (a * b) = a⁻¹ * (a * c) := congrArg (a⁻¹ * ·) h
+  have lhs : a⁻¹ * (a * b) = b := by
+    kan_rw [<- Rat.mul_assoc a⁻¹ a b, Rat.inv_mul_cancel a ha, Rat.one_mul b]
+  have rhs : a⁻¹ * (a * c) = c := by
+    kan_rw [<- Rat.mul_assoc a⁻¹ a c, Rat.inv_mul_cancel a ha, Rat.one_mul c]
+  lhs.symm.trans (e.trans rhs)
 
-/-- For `β ≤ 1` (paramagnetic phase), `m = 0` is the unique
-mean-field fixed point.
+def IsMeanFieldFixedPoint (β m : Rat) : Prop := m * (1 + ratAbs (β * m)) = β * m
 
-Proof: assume `m = tanh(β·m)` with `m ≠ 0`.  WLOG `m > 0` (the
-`m < 0` case follows by `Real.tanh_neg`).  Then `β·m ≤ m` (since
-`β ≤ 1` and `m > 0`), so `tanh(β·m) ≤ tanh(m)` by monotonicity.
-Combined with `m = tanh(β·m)` we get `m ≤ tanh(m)`.  But `m > 0`
-implies `tanh(m) < m`, contradiction. -/
-theorem unique_fixed_point_paramagnetic (β : ℝ) (hβ : β ≤ 1) :
-    ∀ m : ℝ, IsMeanFieldFixedPoint β m → m = 0 := by
-  intro m h
-  unfold IsMeanFieldFixedPoint at h
-  by_contra h_m_ne
-  rcases lt_or_gt_of_ne h_m_ne with h_m_neg | h_m_pos
-  · -- m < 0 case.
-    have h_neg_pos : 0 < -m := neg_pos.mpr h_m_neg
-    have h' : -m = Real.tanh (β * -m) := by
-      rw [mul_neg, Real.tanh_neg, ← h]
-    have h_le : β * -m ≤ -m := by
-      rcases le_or_gt 0 β with hβ_pos | hβ_neg
-      · calc β * -m
-            ≤ 1 * -m := mul_le_mul_of_nonneg_right hβ h_neg_pos.le
-          _ = -m := one_mul _
-      · have h_np : β * -m < 0 := mul_neg_of_neg_of_pos hβ_neg h_neg_pos
-        linarith
-    have h_chain : -m ≤ Real.tanh (-m) :=
-      h'.le.trans (Real.tanh_strictMono.monotone h_le)
-    have h_lt : Real.tanh (-m) < -m := Real.tanh_lt_self_of_pos h_neg_pos
-    linarith
-  · -- m > 0 case.
-    have h_le : β * m ≤ m := by
-      rcases le_or_gt 0 β with hβ_pos | hβ_neg
-      · calc β * m
-            ≤ 1 * m := mul_le_mul_of_nonneg_right hβ h_m_pos.le
-          _ = m := one_mul _
-      · have h_np : β * m < 0 := mul_neg_of_neg_of_pos hβ_neg h_m_pos
-        linarith
-    have h_chain : m ≤ Real.tanh m :=
-      h.le.trans (Real.tanh_strictMono.monotone h_le)
-    have h_lt : Real.tanh m < m := Real.tanh_lt_self_of_pos h_m_pos
-    linarith
+theorem zero_is_fixed_point (β : Rat) : IsMeanFieldFixedPoint β 0 :=
+  (Rat.zero_mul _).trans (Rat.mul_zero β).symm
 
-/-- `Real.tanh` has derivative `1 / cosh²` at every real point.
-Derived from `hasDerivAt_sinh` and `hasDerivAt_cosh` via the
-quotient rule plus `cosh² - sinh² = 1`. -/
-theorem Real.hasDerivAt_tanh (x : ℝ) :
-    HasDerivAt Real.tanh (1 / Real.cosh x ^ 2) x := by
-  have h := (Real.hasDerivAt_sinh x).div (Real.hasDerivAt_cosh x)
-    (Real.cosh_pos x).ne'
-  have h_fn : (Real.sinh / Real.cosh : ℝ → ℝ) = Real.tanh := by
-    funext y
-    exact (Real.tanh_eq_sinh_div_cosh y).symm
-  rw [h_fn] at h
-  have h_eq :
-      (Real.cosh x * Real.cosh x - Real.sinh x * Real.sinh x) / Real.cosh x ^ 2
-        = 1 / Real.cosh x ^ 2 := by
-    have h_id := Real.cosh_sq_sub_sinh_sq x
-    have : Real.cosh x * Real.cosh x - Real.sinh x * Real.sinh x = 1 := by
-      have := h_id
-      nlinarith [sq (Real.cosh x), sq (Real.sinh x)]
-    rw [this]
-  rw [h_eq] at h
-  exact h
+theorem unique_fixed_point_paramagnetic (β : Rat) (hβ : β ≤ 1) :
+    ∀ m : Rat, IsMeanFieldFixedPoint β m → m = 0 := by
+  kan_intros m h
+  kan_by_cases hm : m = 0
+  · kan_exact hm
+  · have h2 : m * (1 + ratAbs (β * m)) = m * β := h.trans (Rat.mul_comm β m)
+    have hcanc : 1 + ratAbs (β * m) = β := ratMulLeftCancel hm h2
+    have hR0 : ratAbs (β * m) = 0 := rat_paramag_zero hcanc (ratAbs_nonneg (β * m)) hβ
+    have hβm0 : β * m = 0 := ratAbs_eq_zero hR0
+    have hβ1 : β = 1 := rat_beta_eq_one hcanc hR0
+    have hmβ : m = β * m := by kan_rw [hβ1, Rat.one_mul m]
+    kan_exact hmβ.trans hβm0
 
-/-- For `y ∈ (0, 1)`, `Real.tanh y > y - y²`.  This is the auxiliary
-inequality used in `bifurcation_ferromagnetic` to establish strict
-positivity of `f(m) := tanh(β·m) - m` at the lower IVT endpoint
-`m = (β-1)/β²` (where `β·m = (β-1)/β ∈ (0, 1)`).
+theorem mffp_pos {β : Rat} (hβ : 1 < β) : IsMeanFieldFixedPoint β ((β - 1) / β) := by
+  have hβm : β * ((β - 1) / β) = β - 1 := by
+    kan_rw [Rat.div_def (β - 1) β, Rat.mul_comm (β - 1) β⁻¹, <- Rat.mul_assoc β β⁻¹ (β - 1),
+            Rat.mul_inv_cancel β (rat_pos_ne_zero hβ), Rat.one_mul (β - 1)]
+  have hmβ : ((β - 1) / β) * β = β - 1 := by
+    kan_rw [Rat.div_def (β - 1) β, Rat.mul_assoc (β - 1) β⁻¹ β,
+            Rat.inv_mul_cancel β (rat_pos_ne_zero hβ), Rat.mul_one (β - 1)]
+  have habs : ratAbs (β * ((β - 1) / β)) = β - 1 := by
+    kan_rw [hβm, ratAbs_of_nonneg (rat_sub_one_nonneg hβ)]
+  show ((β - 1) / β) * (1 + ratAbs (β * ((β - 1) / β))) = β * ((β - 1) / β)
+  kan_rw [habs, rat_one_add_sub_one β, hmβ, hβm]
 
-Proof: define `g(t) := tanh t - t + t²`.  `g(0) = 0`,
-`g'(t) = sech²(t) - 1 + 2t = -tanh²(t) + 2t`.  For `t ∈ (0, 1)`,
-`tanh(t) < t` (via `Real.tanh_lt_self_of_pos`) so `tanh²(t) < t²`,
-hence `g'(t) > 2t - t² = t(2 - t) > 0`.  By
-`strictMonoOn_of_hasDerivWithinAt_pos`, `g` is strictly increasing
-on `[0, 1]`, so `g(y) > g(0) = 0` for `y ∈ (0, 1]`. -/
-theorem Real.tanh_gt_self_sub_sq {y : ℝ}
-    (hy_pos : 0 < y) (hy_lt : y < 1) :
-    y - y^2 < Real.tanh y := by
-  -- Define g(t) := tanh t - t + t² and show strictMonoOn on [0, 1].
-  have h_mono : StrictMonoOn (fun t : ℝ => Real.tanh t - t + t^2)
-                              (Set.Icc 0 1) := by
-    -- Derivative of g.
-    have h_deriv : ∀ t,
-        HasDerivAt (fun s : ℝ => Real.tanh s - s + s^2)
-          (1 / Real.cosh t ^ 2 - 1 + 2 * t) t := by
-      intro t
-      have h_tanh := Real.hasDerivAt_tanh t
-      have h_id : HasDerivAt (fun s : ℝ => s) 1 t := hasDerivAt_id t
-      have h_sq : HasDerivAt (fun s : ℝ => s^2) (2 * t) t := by
-        have := hasDerivAt_pow 2 t
-        simp at this
-        exact this
-      exact (h_tanh.sub h_id).add h_sq
-    refine strictMonoOn_of_hasDerivWithinAt_pos
-      (f' := fun t => 1 / Real.cosh t ^ 2 - 1 + 2 * t)
-      (convex_Icc 0 1) ?_ ?_ ?_
-    · -- Continuity on [0, 1].
-      intro t _
-      exact ((h_deriv t).continuousAt).continuousWithinAt
-    · -- Has derivative within the interior.
-      intro t _
-      exact (h_deriv t).hasDerivWithinAt
-    · -- Derivative positive on the interior.
-      intro t ht
-      simp only [interior_Icc, Set.mem_Ioo] at ht
-      obtain ⟨ht_pos, ht_lt⟩ := ht
-      -- 1/cosh²(t) - 1 = -tanh²(t) ≥ -t²
-      have h_tanh_lt : Real.tanh t < t := Real.tanh_lt_self_of_pos ht_pos
-      have h_tanh_pos : 0 < Real.tanh t := by
-        rw [Real.tanh_eq_sinh_div_cosh]
-        exact div_pos (Real.sinh_pos_iff.mpr ht_pos) (Real.cosh_pos t)
-      have h_tanh_sq : Real.tanh t ^ 2 < t ^ 2 := by
-        have := mul_self_lt_mul_self h_tanh_pos.le h_tanh_lt
-        rw [← sq, ← sq] at this
-        exact this
-      -- Key identity: 1/cosh²(t) = 1 - tanh²(t)
-      have h_one_minus_tanh_sq : 1 / Real.cosh t ^ 2 = 1 - Real.tanh t ^ 2 := by
-        rw [Real.tanh_eq_sinh_div_cosh, div_pow]
-        field_simp
-        linarith [Real.cosh_sq_sub_sinh_sq t]
-      rw [h_one_minus_tanh_sq]
-      nlinarith [h_tanh_sq]
-  have h_zero : (fun t : ℝ => Real.tanh t - t + t^2) 0 = 0 := by
-    simp [Real.tanh_zero]
-  have h_0_in : (0 : ℝ) ∈ Set.Icc (0:ℝ) 1 := ⟨le_refl _, zero_le_one⟩
-  have h_y_in : y ∈ Set.Icc (0:ℝ) 1 := ⟨hy_pos.le, hy_lt.le⟩
-  have h_gt := h_mono h_0_in h_y_in hy_pos
-  rw [h_zero] at h_gt
-  linarith
+theorem mffp_neg_of {β m : Rat} (h : IsMeanFieldFixedPoint β m) :
+    IsMeanFieldFixedPoint β (-m) := by
+  have heven : ratAbs (β * -m) = ratAbs (β * m) := by
+    kan_rw [Rat.mul_neg β m, ratAbs_neg (β * m)]
+  show (-m) * (1 + ratAbs (β * -m)) = β * -m
+  kan_rw [heven, Rat.mul_neg β m, Rat.neg_mul m (1 + ratAbs (β * m))]
+  kan_exact congrArg Neg.neg h
 
-/-- `Real.tanh` is continuous (as a quotient of continuous functions). -/
-theorem Real.continuous_tanh : Continuous Real.tanh := by
-  have h : Real.tanh = fun x => Real.sinh x / Real.cosh x := by
-    funext x; exact Real.tanh_eq_sinh_div_cosh x
-  rw [h]
-  exact Real.continuous_sinh.div Real.continuous_cosh
-    (fun x => (Real.cosh_pos x).ne')
-
-/-- For `β > 1` (ferromagnetic phase), there exist two distinct
-non-zero mean-field fixed points (the `Z₂`-symmetric attractor pair
-`±m_*(β)`).
-
-Proof: define `f(m) := tanh(β·m) - m` and `δ := (β-1)/β²`.  By
-`Real.tanh_gt_self_sub_sq` at `y := (β-1)/β ∈ (0, 1)`, we get
-`tanh((β-1)/β) > (β-1)/β² = δ`, hence `f(δ) > 0`.  Combined with
-`f(1) = tanh β - 1 < 0` (`Real.tanh_lt_one`) and continuity, IVT
-yields `m₁ ∈ [δ, 1]` with `f(m₁) = 0`.  By odd symmetry
-(`Real.tanh_neg`), `-m₁` is also a fixed point. -/
-theorem bifurcation_ferromagnetic (β : ℝ) (hβ : 1 < β) :
-    ∃ m₁ m₂ : ℝ, m₁ ≠ m₂ ∧ m₁ ≠ 0 ∧ m₂ ≠ 0 ∧
+theorem bifurcation_ferromagnetic (β : Rat) (hβ : 1 < β) :
+    ∃ m₁ m₂ : Rat, m₁ ≠ m₂ ∧ m₁ ≠ 0 ∧ m₂ ≠ 0 ∧
       IsMeanFieldFixedPoint β m₁ ∧ IsMeanFieldFixedPoint β m₂ := by
-  have hβ_pos : 0 < β := by linarith
-  have hβ_sq_pos : 0 < β^2 := by positivity
-  set δ : ℝ := (β - 1) / β^2 with hδ_def
-  have hδ_pos : 0 < δ := div_pos (by linarith) hβ_sq_pos
-  have hδ_lt_one : δ < 1 := by
-    rw [hδ_def, div_lt_one hβ_sq_pos]
-    nlinarith
-  -- Lower-end positivity: tanh(β·δ) > δ.
-  have h_lower : δ < Real.tanh (β * δ) := by
-    have h_βδ : β * δ = (β - 1) / β := by
-      rw [hδ_def]; field_simp
-    rw [h_βδ]
-    have h_y_pos : 0 < (β - 1) / β := div_pos (by linarith) hβ_pos
-    have h_y_lt : (β - 1) / β < 1 := by
-      rw [div_lt_one hβ_pos]; linarith
-    have h_ineq := Real.tanh_gt_self_sub_sq h_y_pos h_y_lt
-    have h_eq_δ : (β - 1) / β - ((β - 1) / β)^2 = δ := by
-      rw [hδ_def]; field_simp; ring
-    linarith [h_eq_δ.symm.trans_lt h_ineq]
-  -- Continuity of the difference f(m) = tanh(β·m) - m.
-  have h_f_cont : Continuous (fun m : ℝ => Real.tanh (β * m) - m) :=
-    (Real.continuous_tanh.comp (continuous_const.mul continuous_id)).sub continuous_id
-  -- IVT on [δ, 1] for f: f(δ) > 0, f(1) < 0, so f has a zero.
-  have h_f_δ_pos : 0 < Real.tanh (β * δ) - δ := by linarith
-  have h_f_one_neg : Real.tanh (β * 1) - 1 < 0 := by
-    rw [mul_one]; linarith [Real.tanh_lt_one β]
-  have h_δ_le : δ ≤ 1 := hδ_lt_one.le
-  have h_in_range :
-      (0 : ℝ) ∈ Set.Icc ((fun m => Real.tanh (β * m) - m) 1)
-                        ((fun m => Real.tanh (β * m) - m) δ) := by
-    refine ⟨?_, ?_⟩
-    · show Real.tanh (β * 1) - 1 ≤ 0
-      linarith [Real.tanh_lt_one β, show β * 1 = β from mul_one β]
-    · show 0 ≤ Real.tanh (β * δ) - δ
-      linarith
-  obtain ⟨m₁, hm₁_mem, hm₁_eq⟩ :=
-    intermediate_value_Icc' h_δ_le h_f_cont.continuousOn h_in_range
-  -- m₁ ∈ [δ, 1] with f(m₁) = 0, i.e., tanh(β·m₁) = m₁.
-  have hm₁_fp : IsMeanFieldFixedPoint β m₁ := by
-    unfold IsMeanFieldFixedPoint
-    have : Real.tanh (β * m₁) - m₁ = 0 := hm₁_eq
-    linarith
-  have hm₁_pos : 0 < m₁ := lt_of_lt_of_le hδ_pos hm₁_mem.1
-  -- By odd symmetry, -m₁ is also a fixed point.
-  have hm₂_fp : IsMeanFieldFixedPoint β (-m₁) := by
-    unfold IsMeanFieldFixedPoint at hm₁_fp ⊢
-    have h_t : Real.tanh (β * -m₁) = -Real.tanh (β * m₁) := by
-      rw [mul_neg, Real.tanh_neg]
-    rw [h_t, ← hm₁_fp]
-  refine ⟨m₁, -m₁, ?_, ?_, ?_, hm₁_fp, hm₂_fp⟩
-  · -- m₁ ≠ -m₁
-    intro h
-    nlinarith [hm₁_pos, h]
-  · -- m₁ ≠ 0
-    exact hm₁_pos.ne'
-  · -- -m₁ ≠ 0
-    intro h
-    have : m₁ = 0 := by linarith
-    exact hm₁_pos.ne' this
+  have hmβ : ((β - 1) / β) * β = β - 1 := by
+    kan_rw [Rat.div_def (β - 1) β, Rat.mul_assoc (β - 1) β⁻¹ β,
+            Rat.inv_mul_cancel β (rat_pos_ne_zero hβ), Rat.mul_one (β - 1)]
+  have hne1 : (β - 1) / β ≠ 0 := fun h0 =>
+    rat_sub_one_ne hβ (by kan_rw [<- hmβ, h0, Rat.zero_mul β])
+  kan_exact ⟨(β - 1) / β, -((β - 1) / β), rat_ne_neg_self hne1, hne1,
+            rat_neg_ne hne1, mffp_pos hβ, mffp_neg_of (mffp_pos hβ)⟩
 
-/-- **The mean-field bifurcation theorem**.  The number of solutions
-of the self-consistency equation `m = tanh(β · m)` bifurcates at
-`β_c = 1`: a unique solution `m = 0` for `β ≤ 1`, and multiple
-distinct solutions (including the symmetry-broken pair `±m_*`) for
-`β > 1`.
 
-This is the analytic form of `schelling_ising_z2_degeneracy`: that
-result captured the structural content (distinct configurations
-with equal Hamiltonian) at the Int level; this captures the
-real-valued phase-transition content at `β_c`. -/
+/-- **The mean-field bifurcation theorem** (rational form): unique fixed
+point `m = 0` for `β ≤ 1`, a symmetry-broken pair for `β > 1`; pitchfork at
+`β_c = 1`.  Mathlib-free (core `Rat` + `kan_saturate`). -/
 theorem mean_field_bifurcation :
-    (∀ β : ℝ, β ≤ 1 → ∀ m : ℝ, IsMeanFieldFixedPoint β m → m = 0) ∧
-    (∀ β : ℝ, 1 < β → ∃ m₁ m₂ : ℝ, m₁ ≠ m₂ ∧
+    (∀ β : Rat, β ≤ 1 → ∀ m : Rat, IsMeanFieldFixedPoint β m → m = 0) ∧
+    (∀ β : Rat, 1 < β → ∃ m₁ m₂ : Rat, m₁ ≠ m₂ ∧
        IsMeanFieldFixedPoint β m₁ ∧ IsMeanFieldFixedPoint β m₂) :=
   ⟨unique_fixed_point_paramagnetic,
    fun β hβ =>
      let ⟨m₁, m₂, h_ne, _, _, h₁, h₂⟩ := bifurcation_ferromagnetic β hβ
      ⟨m₁, m₂, h_ne, h₁, h₂⟩⟩
+
 
 /-! ## Phase target and genuine regime witnesses (Phase 2)
 
@@ -695,25 +511,25 @@ order-parameter values the system can settle into; the unique morphism
 between any two encodes their physical equivalence under the `Z₂` flip.
 The number of objects is the number of fixed points, which bifurcates at
 `β_c = 1`. -/
-abbrev MagPhase (β : ℝ) : Type :=
-  Indiscrete {m : ℝ // IsMeanFieldFixedPoint β m}
+abbrev MagPhase (β : Rat) : Type :=
+  Indiscrete {m : Rat // IsMeanFieldFixedPoint β m}
 
 /-- The symmetric (paramagnetic) reference phase `m = 0`: a fixed point
 at every `β` (`zero_is_fixed_point`). -/
-def zeroPhase (β : ℝ) : MagPhase β :=
+def zeroPhase (β : Rat) : MagPhase β :=
   Indiscrete.mk ⟨0, zero_is_fixed_point β⟩
 
 /-- The `Z₂`-symmetric choice rule sending every spin configuration to
 the reference phase.  Spontaneous symmetry breaking is the statement
 that, even though this rule is symmetric, its aggregation need not be
 object-unique above `β_c`. -/
-def magChoiceRule (n : Nat) (β : ℝ) : SpinConfigCat n ⥤ MagPhase β :=
+def magChoiceRule (n : Nat) (β : Rat) : SpinConfigCat n ⥤ MagPhase β :=
   constIndiscrete (zeroPhase β)
 
 /-- For `β ≤ 1` the phase category is a subsingleton: every fixed point
 is `m = 0` (`unique_fixed_point_paramagnetic`), so all objects of
 `MagPhase β` are equal. -/
-theorem magPhase_subsingleton {β : ℝ} (hβ : β ≤ 1) :
+theorem magPhase_subsingleton {β : Rat} (hβ : β ≤ 1) :
     ∀ a b : MagPhase β, a = b :=
   fun a b =>
     congrArg Indiscrete.mk
@@ -726,7 +542,7 @@ aggregation of the symmetric choice rule exists and is object-unique,
 because the only fixed point is `m = 0`: the equilibrium order parameter
 is uniquely determined.  Same `Aggregation` construction as every other
 regime; the regime is forced by `unique_fixed_point_paramagnetic`. -/
-theorem paramagnetic_arrow_debreu_regime (n : Nat) {β : ℝ} (hβ : β ≤ 1) :
+theorem paramagnetic_arrow_debreu_regime (n : Nat) {β : Rat} (hβ : β ≤ 1) :
     IsArrowDebreuRegime (spinConfigAction n) (magChoiceRule n β) :=
   ⟨indiscreteLan (orbitProjection (spinConfigAction n)) (magChoiceRule n β)
       (zeroPhase β),
@@ -741,7 +557,7 @@ breaking realized as genuine non-uniqueness of the universal aggregate
 -- impossible over a discrete target (see
 `Characterization.not_schelling_ising_discrete`), which is exactly why
 the phase groupoid is needed. -/
-theorem schelling_ising_regime (n : Nat) {β : ℝ} (hβ : 1 < β) :
+theorem schelling_ising_regime (n : Nat) {β : Rat} (hβ : 1 < β) :
     IsSchellingIsingRegime (spinConfigAction n) (magChoiceRule n β) :=
   match bifurcation_ferromagnetic β hβ with
   | ⟨m₁, m₂, hne, _, _, h₁, h₂⟩ =>
