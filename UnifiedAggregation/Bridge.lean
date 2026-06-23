@@ -5,3 +5,4 @@
 import UnifiedAggregation.Bridge.ArrowImpossibility
 import UnifiedAggregation.Bridge.SchellingIsing
 import UnifiedAggregation.Bridge.ArrowDebreu
+import UnifiedAggregation.Bridge.Potts
