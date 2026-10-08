@@ -12,6 +12,7 @@ import UnifiedAggregation.Aggregation
 import UnifiedAggregation.Indiscrete
 import UnifiedAggregation.Regimes
 import UnifiedAggregation.Characterization
+import UnifiedAggregation.DiscreteCharacterization
 import UnifiedAggregation.Trichotomy
 import UnifiedAggregation.Bridge
 import UnifiedAggregation.TrichotomyWitnesses
